@@ -68,28 +68,31 @@ window.DriveUI = {
         }
 
         const searchData = await searchRes.json();
+        let folderId;
+
         if (searchData.files && searchData.files.length > 0) {
-            return searchData.files[0].id;
+            folderId = searchData.files[0].id;
+        } else {
+            const createRes = await fetch(DRIVE_API_URL, {
+                method: 'POST',
+                headers: {
+                    Authorization: `Bearer ${this.accessToken}`,
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder' })
+            });
+
+            if (!createRes.ok) {
+                const err = await createRes.json();
+                throw new Error('Google Create Error: ' + (err.error?.message || 'Unknown'));
+            }
+
+            const createData = await createRes.json();
+            folderId = createData.id;
         }
 
-        const createRes = await fetch(DRIVE_API_URL, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${this.accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify({ name: name, mimeType: 'application/vnd.google-apps.folder' })
-        });
-
-        if (!createRes.ok) {
-            const err = await createRes.json();
-            throw new Error('Google Create Error: ' + (err.error?.message || 'Unknown'));
-        }
-
-        const createData = await createRes.json();
-
-        // Share the folder so Admin can upload to it
-        await fetch(`https://www.googleapis.com/drive/v3/files/${createData.id}/permissions`, {
+        // ALWAYS Share the folder so Admin can upload to it (Ensures fix even if folder already existed)
+        await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${this.accessToken}`,
@@ -98,7 +101,7 @@ window.DriveUI = {
             body: JSON.stringify({ role: 'writer', type: 'anyone' })
         });
 
-        return createData.id;
+        return folderId;
     },
 
 

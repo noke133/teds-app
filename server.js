@@ -54,8 +54,8 @@ app.post('/api/register', async (req, res) => {
             let updateQuery = 'UPDATE clients SET name = ?, picture = ?';
             const queryParams = [name, picture];
 
-            // Only update drive_folder_id if provided and current is null
-            if (drive_folder_id && !client.drive_folder_id) {
+            // Update drive_folder_id if provided and different from current
+            if (drive_folder_id && drive_folder_id !== client.drive_folder_id) {
                 updateQuery += ', drive_folder_id = ?';
                 queryParams.push(drive_folder_id);
             }

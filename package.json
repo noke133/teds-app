@@ -2,8 +2,9 @@
   "name": "php_app",
   "version": "1.0.0",
   "description": "This folder contains the complete code for your TDS App, converted to HTML/CSS/PHP for easy hosting.",
-  "main": "drive_v5.js",
+  "main": "server.js",
   "scripts": {
+    "start": "node server.js",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "keywords": [],

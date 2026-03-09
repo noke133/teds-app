@@ -11,6 +11,11 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
+// --- Health Check / Root ---
+app.get('/', (req, res) => {
+    res.send('TDS App Express Server is Running!');
+});
+
 // Serve static files from the current directory
 app.use(express.static(path.join(__dirname)));
 
@@ -97,6 +102,7 @@ app.post('/api/clients/:id/unlink', async (req, res) => {
     }
 });
 
-app.listen(PORT, () => {
-    console.log(`Express server running on http://localhost:${PORT}`);
+app.listen(PORT, '0.0.0.0', () => {
+    console.log(`Express server running on port ${PORT}`);
+    console.log(`DB Host: ${process.env.DB_HOST}`);
 });

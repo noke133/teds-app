@@ -11,9 +11,9 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// --- Health Check / Root ---
+// --- App Root ---
 app.get('/', (req, res) => {
-    res.send('TDS App Express Server is Running!');
+    res.sendFile(path.join(__dirname, 'index.html'));
 });
 
 // Serve static files from the current directory

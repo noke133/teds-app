@@ -22,6 +22,19 @@ app.get('/', (req, res) => {
 // Serve static files from the current directory
 app.use(express.static(path.join(__dirname)));
 
+// 0. Configuration for clients
+app.get('/api/config', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT admin_email FROM settings WHERE id = 1');
+        res.json({
+            GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
+            ADMIN_EMAIL: (rows[0] && rows[0].admin_email) || null
+        });
+    } catch (err) {
+        res.json({ GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID });
+    }
+});
+
 // --- API Endpoints ---
 
 // 1. Register or get client
@@ -132,13 +145,19 @@ app.post('/api/admin/auth/exchange', async (req, res) => {
         const data = await tokenRes.json();
         if (data.error) throw new Error(data.error_description || data.error);
 
-        // Save refresh token to DB
+        // Fetch Admin Info to get Email
+        const userRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+            headers: { Authorization: `Bearer ${data.access_token}` }
+        });
+        const userData = await userRes.json();
+
+        // Save refresh token and email to DB
         await db.query(
-            'INSERT INTO settings (id, admin_refresh_token) VALUES (1, ?) ON DUPLICATE KEY UPDATE admin_refresh_token = ?',
-            [data.refresh_token, data.refresh_token]
+            'INSERT INTO settings (id, admin_refresh_token, admin_email) VALUES (1, ?, ?) ON DUPLICATE KEY UPDATE admin_refresh_token = ?, admin_email = ?',
+            [data.refresh_token, userData.email, data.refresh_token, userData.email]
         );
 
-        res.json({ success: true, message: "Offline access enabled!" });
+        res.json({ success: true, message: "Offline access enabled!", email: userData.email });
     } catch (err) {
         console.error("Token Exchange Error:", err);
         res.status(500).json({ error: err.message });
@@ -147,8 +166,11 @@ app.post('/api/admin/auth/exchange', async (req, res) => {
 
 app.get('/api/admin/auth/status', async (req, res) => {
     try {
-        const [rows] = await db.query('SELECT admin_refresh_token FROM settings WHERE id = 1');
-        res.json({ connected: !!(rows[0] && rows[0].admin_refresh_token) });
+        const [rows] = await db.query('SELECT admin_refresh_token, admin_email FROM settings WHERE id = 1');
+        res.json({
+            connected: !!(rows[0] && rows[0].admin_refresh_token),
+            email: (rows[0] && rows[0].admin_email) || null
+        });
     } catch (err) {
         res.json({ connected: false });
     }
@@ -180,10 +202,11 @@ app.get('/api/admin/drive/list/:folderId', async (req, res) => {
     try {
         const token = await getAdminAccessToken();
         const q = `'${req.params.folderId}' in parents and trashed=false`;
-        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,thumbnailLink,mimeType,webViewLink)`, {
+        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,thumbnailLink,mimeType,webViewLink)&supportsAllDrives=true&includeItemsFromAllDrives=true`, {
             headers: { Authorization: `Bearer ${token}` }
         });
         const data = await driveRes.json();
+        if (!driveRes.ok) throw new Error(data.error?.message || "List failed");
         res.json(data.files || []);
     } catch (err) {
         res.status(500).json({ error: err.message });
@@ -250,11 +273,14 @@ app.get('/api/admin/drive/test', async (req, res) => {
 app.delete('/api/admin/drive/delete/:fileId', async (req, res) => {
     try {
         const token = await getAdminAccessToken();
-        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${req.params.fileId}`, {
+        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${req.params.fileId}?supportsAllDrives=true`, {
             method: 'DELETE',
             headers: { Authorization: `Bearer ${token}` }
         });
-        if (!driveRes.ok) throw new Error("Delete failed");
+        if (!driveRes.ok) {
+            const data = await driveRes.json();
+            throw new Error(data.error?.message || "Delete failed");
+        }
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });

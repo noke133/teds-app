@@ -167,6 +167,7 @@
                 const status = await statusRes.json();
                 if (status.connected) {
                     document.getElementById('auth-status').classList.remove('hidden');
+                    document.getElementById('auth-status').innerHTML = `<i class="fas fa-check-circle"></i> Permanent Access Active: <strong>${status.email}</strong>`;
                     document.getElementById('admin-login-btn').classList.add('hidden');
                 } else {
                     document.getElementById('auth-status').classList.add('hidden');

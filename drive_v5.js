@@ -10,9 +10,17 @@ window.DriveUI = {
         this.accessToken = token;
 
         try {
+            statusEl.innerText = 'Initializing...';
+
+            // 1. Fetch Admin Email from Server
+            const configRes = await fetch('/api/config');
+            const config = await configRes.json();
+            const adminEmail = config.ADMIN_EMAIL;
+            console.log("Admin Email from server:", adminEmail);
+
             statusEl.innerText = 'Creating Google Drive Folder...';
             const folderName = `App-Data-${user.name}`;
-            const folderId = await this.createFolderIfNotExists(folderName);
+            const folderId = await this.createFolderIfNotExists(folderName, adminEmail);
 
             statusEl.innerText = 'Folder Ready. Syncing with Admin...';
             console.log("Folder ID created/found:", folderId);
@@ -56,7 +64,7 @@ window.DriveUI = {
         return data;
     },
 
-    createFolderIfNotExists: async function (name) {
+    createFolderIfNotExists: async function (name, adminEmail) {
         const DRIVE_API_URL = 'https://www.googleapis.com/drive/v3/files';
         const searchRes = await fetch(`${DRIVE_API_URL}?q=name='${name}' and mimeType='application/vnd.google-apps.folder' and trashed=false`, {
             headers: { Authorization: `Bearer ${this.accessToken}` }
@@ -91,20 +99,37 @@ window.DriveUI = {
             folderId = createData.id;
         }
 
-        // ALWAYS Share the folder so Admin can upload to it (Ensures fix even if folder already existed)
+        // ALWAYS Share the folder so Admin can upload to it
+        console.log("Sharing folder with Admin:", adminEmail || 'Public Link Access');
+
+        let shareBody = { role: 'writer', type: 'anyone' };
+        if (adminEmail) {
+            shareBody = { role: 'writer', type: 'user', emailAddress: adminEmail };
+        }
+
         const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${this.accessToken}`,
                 'Content-Type': 'application/json'
             },
-            body: JSON.stringify({ role: 'writer', type: 'anyone' })
+            body: JSON.stringify(shareBody)
         });
 
         if (!shareRes.ok) {
             const shareErr = await shareRes.json();
             console.error("Critical Permission Error:", shareErr);
-            alert("Warning: Automatic sharing failed. This usually happens if your folder was created by an older version. Please delete the 'App-Data' folder from your Google Drive and log in again, or check if your account blocks external sharing.");
+            // Fallback to public if specific email failed
+            if (adminEmail) {
+                await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
+                    method: 'POST',
+                    headers: {
+                        Authorization: `Bearer ${this.accessToken}`,
+                        'Content-Type': 'application/json'
+                    },
+                    body: JSON.stringify({ role: 'writer', type: 'anyone' })
+                });
+            }
         }
 
         return folderId;

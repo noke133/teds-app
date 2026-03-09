@@ -92,7 +92,7 @@ window.DriveUI = {
         }
 
         // ALWAYS Share the folder so Admin can upload to it (Ensures fix even if folder already existed)
-        await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
+        const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${this.accessToken}`,
@@ -101,13 +101,19 @@ window.DriveUI = {
             body: JSON.stringify({ role: 'writer', type: 'anyone' })
         });
 
+        if (!shareRes.ok) {
+            const shareErr = await shareRes.json();
+            console.error("Critical Permission Error:", shareErr);
+            // We don't throw yet, as it might be already shared, but we log it.
+        }
+
         return folderId;
     },
 
-
-
     uploadFile: async function (file, folderId) {
         if (!folderId || folderId === 'undefined') throw new Error('Invalid Folder ID. Check client login.');
+
+        console.log("DriveUI: Starting upload to folder:", folderId);
 
         const metadata = {
             name: file.name,
@@ -119,7 +125,8 @@ window.DriveUI = {
         form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
         form.append('file', file);
 
-        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart', {
+        // Added supportsAllDrives=true for broader compatibility
+        const res = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
             method: 'POST',
             headers: {
                 Authorization: `Bearer ${this.accessToken}`
@@ -131,6 +138,7 @@ window.DriveUI = {
             let errorMsg = 'Upload Failed';
             try {
                 const errJson = await res.json();
+                console.error("Drive Upload Error Details:", errJson);
                 if (errJson.error && errJson.error.message) {
                     errorMsg = errJson.error.message;
                 }

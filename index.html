@@ -174,7 +174,7 @@
             GOOGLE_CLIENT_ID: '154052449476-8ssomb0m7r801gqm5rc2k76d1p2ik1u3.apps.googleusercontent.com'
         };
     </script>
-    <script src="drive_v5.js?v=1.3"></script>
+    <script src="drive_v5.js?v=1.5"></script>
     <script>
         let tokenClient;
         let currentUser = null;
@@ -183,7 +183,7 @@
         function startUnifiedLogin() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
                 callback: async (response) => {
                     if (response.access_token) {
                         await handleLoginSuccess(response.access_token);

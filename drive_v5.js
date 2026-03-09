@@ -104,7 +104,7 @@ window.DriveUI = {
         if (!shareRes.ok) {
             const shareErr = await shareRes.json();
             console.error("Critical Permission Error:", shareErr);
-            // We don't throw yet, as it might be already shared, but we log it.
+            alert("Warning: Automatic sharing failed. This usually happens if your folder was created by an older version. Please delete the 'App-Data' folder from your Google Drive and log in again, or check if your account blocks external sharing.");
         }
 
         return folderId;

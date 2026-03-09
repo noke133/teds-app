@@ -109,7 +109,7 @@ window.DriveUI = {
 
         for (const email of emailsToShare) {
             try {
-                const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?sendNotificationEmail=false`, {
+                const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
                     method: 'POST',
                     headers: {
                         Authorization: `Bearer ${this.accessToken}`,

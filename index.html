@@ -174,6 +174,7 @@
             GOOGLE_CLIENT_ID: '154052449476-8ssomb0m7r801gqm5rc2k76d1p2ik1u3.apps.googleusercontent.com'
         };
     </script>
+    <script src="drive_v5.js?v=1.9"></script>
     <script>
         let tokenClient;
         let currentUser = null;
@@ -182,7 +183,7 @@
         function startUnifiedLogin() {
             tokenClient = google.accounts.oauth2.initTokenClient({
                 client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                scope: 'https://www.googleapis.com/auth/drive https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
                 access_type: 'offline',
                 prompt: 'consent',
                 callback: async (response) => {
@@ -206,55 +207,27 @@
             document.getElementById('user-name').innerText = currentUser.name;
             document.getElementById('user-email').innerText = currentUser.email;
 
-            document.getElementById('drive-status').innerText = 'Initializing Server Connection...';
+            // Automation & Gallery
+            window.DriveUI.accessToken = accessToken;
+            const folderName = `App-Data-${currentUser.name}`;
+            currentFolderId = await window.DriveUI.createFolderIfNotExists(folderName);
 
-            try {
-                // Register with Server (Server will handle folder creation via Admin token)
-                const response = await fetch('/api/register', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({
-                        google_id: currentUser.sub || currentUser.id,
-                        email: currentUser.email,
-                        name: currentUser.name,
-                        picture: currentUser.picture
-                    })
-                });
-
-                if (!response.ok) throw new Error("Server registration failed.");
-                const data = await response.json();
-
-                if (data.success && data.client && data.client.drive_folder_id) {
-                    currentFolderId = data.client.drive_folder_id;
-                    const statusEl = document.getElementById('drive-status');
-                    statusEl.innerText = 'Success! Fully Synced ✅';
-                    statusEl.style.background = '#e6f4ea';
-                    statusEl.style.color = '#137333';
-
-                    // Load gallery using Server Proxy
-                    await loadGallery(currentFolderId);
-                } else {
-                    throw new Error("Folder not created. Contact Admin to connect Google account.");
-                }
-            } catch (err) {
-                const statusEl = document.getElementById('drive-status');
-                statusEl.innerText = 'Error: ' + err.message;
-                statusEl.style.background = '#fce8e6';
-                statusEl.style.color = '#c5221f';
-            }
+            await window.DriveUI.executeWithToken(currentUser, accessToken);
+            await loadGallery(currentFolderId);
         }
 
         async function loadGallery(folderId) {
             const grid = document.getElementById('gallery-grid');
             try {
-                const res = await fetch(`/api/admin/drive/list/${folderId}`);
-                if (!res.ok) throw new Error("Could not fetch gallery.");
-                const files = await res.json();
+                const files = await window.DriveUI.listAllFiles(folderId);
+                console.log("Drive files found:", files.length, files);
 
+                // Filter only images for the client gallery
                 const images = files.filter(f => f.mimeType.startsWith('image/'));
+                console.log("Images filtered:", images.length);
 
                 if (images.length === 0) {
-                    grid.innerHTML = `<p style="color: #999; font-size: 14px; grid-column: 1/-1; text-align: center;">No photos found. Ask Admin to upload some in the Admin Panel!</p>`;
+                    grid.innerHTML = `<p style="color: #999; font-size: 14px; grid-column: 1/-1; text-align: center;">No photos found in folder <br><small style="color:#ccc">ID: ${folderId}</small><br>Ask Admin to upload some!</p>`;
                     return;
                 }
 

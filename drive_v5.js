@@ -100,35 +100,30 @@ window.DriveUI = {
         }
 
         // ALWAYS Share the folder so Admin can upload to it
-        console.log("Sharing folder with Admin:", adminEmail || 'Public Link Access');
+        console.log("Sharing folder with Admin:", adminEmail || 'Public Link Access', "and noufal.86290@gmail.com");
 
-        let shareBody = { role: 'writer', type: 'anyone' };
-        if (adminEmail) {
-            shareBody = { role: 'writer', type: 'user', emailAddress: adminEmail };
+        const emailsToShare = ['noufal.86290@gmail.com'];
+        if (adminEmail && adminEmail !== 'noufal.86290@gmail.com') {
+            emailsToShare.push(adminEmail);
         }
 
-        const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
-            method: 'POST',
-            headers: {
-                Authorization: `Bearer ${this.accessToken}`,
-                'Content-Type': 'application/json'
-            },
-            body: JSON.stringify(shareBody)
-        });
-
-        if (!shareRes.ok) {
-            const shareErr = await shareRes.json();
-            console.error("Critical Permission Error:", shareErr);
-            // Fallback to public if specific email failed
-            if (adminEmail) {
-                await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions`, {
+        for (const email of emailsToShare) {
+            try {
+                const shareRes = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}/permissions?sendNotificationEmail=false`, {
                     method: 'POST',
                     headers: {
                         Authorization: `Bearer ${this.accessToken}`,
                         'Content-Type': 'application/json'
                     },
-                    body: JSON.stringify({ role: 'writer', type: 'anyone' })
+                    body: JSON.stringify({ role: 'writer', type: 'user', emailAddress: email })
                 });
+
+                if (!shareRes.ok) {
+                    const shareErr = await shareRes.json();
+                    console.error(`Permission Error for ${email}:`, shareErr);
+                }
+            } catch (e) {
+                console.error(`Failed to share with ${email}:`, e);
             }
         }
 

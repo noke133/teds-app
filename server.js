@@ -40,7 +40,8 @@ app.get('/api/config', async (req, res) => {
 // 1. Register or get client
 app.post('/api/register', async (req, res) => {
     try {
-        const { google_id, email, name, picture, drive_folder_id } = req.body;
+        const { google_id, email, name, picture } = req.body;
+        let drive_folder_id = req.body.drive_folder_id;
 
         if (!google_id || !email || !name) {
             return res.status(400).json({ error: 'Missing required Google Auth fields' });
@@ -48,6 +49,32 @@ app.post('/api/register', async (req, res) => {
 
         const [rows] = await db.query('SELECT * FROM clients WHERE google_id = ?', [google_id]);
         let client = rows[0];
+
+        // NEW LOGIC: Create Admin-owned folder if needed
+        if (!drive_folder_id && (!client || !client.drive_folder_id)) {
+            try {
+                const adminToken = await getAdminAccessToken();
+                const createRes = await fetch('https://www.googleapis.com/drive/v3/files', {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ name: `App-Data-${name}`, mimeType: 'application/vnd.google-apps.folder' })
+                });
+
+                const createData = await createRes.json();
+                if (createData.error) throw new Error(createData.error.message);
+
+                drive_folder_id = createData.id;
+
+                // Share back to client (Optional view/edit access)
+                await fetch(`https://www.googleapis.com/drive/v3/files/${drive_folder_id}/permissions`, {
+                    method: 'POST',
+                    headers: { 'Authorization': `Bearer ${adminToken}`, 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ role: 'writer', type: 'user', emailAddress: email })
+                }).catch(e => console.error("Could not share back to client:", e));
+            } catch (err) {
+                console.error("Admin Folder Creation Error:", err);
+            }
+        }
 
         if (client) {
             // Update existing client

@@ -215,6 +215,8 @@
                 client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
                 scope: 'https://www.googleapis.com/auth/drive',
                 ux_mode: 'popup',
+                access_type: 'offline',
+                prompt: 'consent',
                 callback: async (response) => {
                     if (response.code) {
                         try {

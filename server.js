@@ -190,7 +190,7 @@ app.get('/api/admin/drive/list/:folderId', async (req, res) => {
     }
 });
 
-// C. PROXY: Upload File
+// C. PROXY: Upload File (Robust Multipart Handling)
 app.post('/api/admin/drive/upload/:folderId', upload.single('file'), async (req, res) => {
     try {
         const token = await getAdminAccessToken();
@@ -199,20 +199,49 @@ app.post('/api/admin/drive/upload/:folderId', upload.single('file'), async (req,
             parents: [req.params.folderId]
         };
 
-        const form = new FormData();
-        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
-        form.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }));
+        const boundary = '-------314159265358979323846';
+        const delimiter = "\r\n--" + boundary + "\r\n";
+        const closeDelim = "\r\n--" + boundary + "--";
+
+        const contentType = req.file.mimetype || 'application/octet-stream';
+        const metadataPart = 'Content-Type: application/json; charset=UTF-8\r\n\r\n' + JSON.stringify(metadata);
+
+        // Construct the multipart body as a Buffer
+        const bodyBuffer = Buffer.concat([
+            Buffer.from(delimiter + metadataPart + delimiter + 'Content-Type: ' + contentType + '\r\n\r\n'),
+            req.file.buffer,
+            Buffer.from(closeDelim)
+        ]);
 
         const driveRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
             method: 'POST',
-            headers: { Authorization: `Bearer ${token}` },
-            body: form
+            headers: {
+                Authorization: `Bearer ${token}`,
+                'Content-Type': 'multipart/related; boundary=' + boundary
+            },
+            body: bodyBuffer
         });
 
         const data = await driveRes.json();
+        if (!driveRes.ok) throw new Error(data.error?.message || "Google Drive Upload Failed");
+
         res.json(data);
     } catch (err) {
         console.error("Proxy Upload Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// E. Connection Test Endpoint
+app.get('/api/admin/drive/test', async (req, res) => {
+    try {
+        const token = await getAdminAccessToken();
+        const driveRes = await fetch('https://www.googleapis.com/drive/v3/about?fields=user', {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await driveRes.json();
+        res.json({ success: true, user: data.user });
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });

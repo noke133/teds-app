@@ -25,6 +25,14 @@ async function initDB() {
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             )
         `);
+        await connection.query(`
+            CREATE TABLE IF NOT EXISTS settings (
+                id INT PRIMARY KEY DEFAULT 1,
+                admin_email VARCHAR(255),
+                admin_refresh_token TEXT,
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+            )
+        `);
         connection.release();
         console.log("Database initialized successfully.");
     } catch (error) {

@@ -1,0 +1,191 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>TDS App - Login</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4285f4;
+            --success: #34a853;
+            --dark: #202124;
+            --light: #f8f9fa;
+        }
+        body {
+            font-family: 'Inter', -apple-system, sans-serif;
+            margin: 0;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            background-color: var(--light);
+            padding: 20px;
+        }
+        .card {
+            background: white;
+            padding: 40px;
+            border-radius: 16px;
+            box-shadow: 0 8px 30px rgba(0,0,0,0.05);
+            text-align: center;
+            max-width: 500px;
+            width: 100%;
+        }
+        h1 {
+            color: var(--dark);
+            margin-bottom: 8px;
+            font-size: 24px;
+        }
+        p {
+            color: #5f6368;
+            margin-bottom: 32px;
+            line-height: 1.5;
+        }
+        #login-btn {
+            display: inline-block;
+        }
+        .user-profile {
+            display: none;
+            margin-top: 20px;
+        }
+        .avatar {
+            width: 80px;
+            height: 80px;
+            border-radius: 50%;
+            margin-bottom: 16px;
+            border: 3px solid white;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.1);
+        }
+        .status-badge {
+            background: #e6f4ea;
+            color: #137333;
+            padding: 8px 16px;
+            border-radius: 20px;
+            font-size: 14px;
+            display: inline-block;
+            margin-top: 10px;
+        }
+
+        /* Gallery Styles */
+        .gallery-container { margin-top: 30px; border-top: 1px solid #eee; padding-top: 20px; text-align: left; }
+        .gallery-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(100px, 1fr)); gap: 10px; margin-top: 15px; }
+        .gallery-item { position: relative; border-radius: 8px; overflow: hidden; box-shadow: 0 2px 5px rgba(0,0,0,0.1); background: #eee; aspect-ratio: 1; }
+        .gallery-item img { width: 100%; height: 100%; object-fit: cover; cursor: pointer; transition: 0.3s; }
+        .gallery-item img:hover { transform: scale(1.05); }
+        .gallery-header { display: flex; justify-content: space-between; align-items: center; }
+        .gallery-header h3 { margin: 0; font-size: 18px; color: var(--dark); }
+        
+        .btn-refresh { background: none; border: none; color: #4285f4; cursor: pointer; font-size: 14px; font-weight: bold; }
+    </style>
+</head>
+<body>
+    <div class="card">
+        <h1>Welcome to TDS App</h1>
+        <p>One-click login to sync your account and create your Google Drive folder.</p>
+
+        <button id="login-btn" onclick="startUnifiedLogin()" style="background: #4285f4; color: white; border: none; padding: 12px 24px; border-radius: 4px; font-weight: bold; cursor: pointer; font-size: 16px;">
+            Login with Google
+        </button>
+
+        <div id="user-profile" class="user-profile">
+            <img id="user-pic" src="" class="avatar">
+            <h2 id="user-name"></h2>
+            <p id="user-email"></p>
+            <div class="status-badge" id="drive-status">Creating Folder...</div>
+            
+            <div class="gallery-container">
+                <div class="gallery-header">
+                    <h3><i class="fas fa-images"></i> My Photos</h3>
+                    <button class="btn-refresh" onclick="refreshCurrentGallery()"><i class="fas fa-sync-alt"></i> Refresh</button>
+                </div>
+                <div id="gallery-grid" class="gallery-grid">
+                    <p style="color: #999; font-size: 14px;">No photos uploaded yet.</p>
+                </div>
+            </div>
+
+            <div style="margin-top: 20px;">
+                <a href="admin.html" style="color: var(--primary); text-decoration: none;">Go to Admin Panel</a>
+            </div>
+        </div>
+    </div>
+
+    <!-- Central config object loaded before scripts -->
+    <script>
+        window.APP_CONFIG = {
+            GOOGLE_CLIENT_ID: '154052449476-8ssomb0m7r801gqm5rc2k76d1p2ik1u3.apps.googleusercontent.com'
+        };
+    </script>
+    <script src="drive_v5.js"></script>
+    <script>
+        let tokenClient;
+        let currentUser = null;
+        let currentFolderId = null;
+
+        function startUnifiedLogin() {
+            tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/drive.file https://www.googleapis.com/auth/userinfo.profile https://www.googleapis.com/auth/userinfo.email',
+                callback: async (response) => {
+                    if (response.access_token) {
+                        await handleLoginSuccess(response.access_token);
+                    }
+                },
+            });
+            tokenClient.requestAccessToken({ prompt: 'consent' });
+        }
+
+        async function handleLoginSuccess(accessToken) {
+            const userInfoRes = await fetch('https://www.googleapis.com/oauth2/v3/userinfo', {
+                headers: { Authorization: `Bearer ${accessToken}` }
+            });
+            currentUser = await userInfoRes.json();
+            
+            document.getElementById('login-btn').style.display = 'none';
+            document.getElementById('user-profile').style.display = 'block';
+            document.getElementById('user-pic').src = currentUser.picture;
+            document.getElementById('user-name').innerText = currentUser.name;
+            document.getElementById('user-email').innerText = currentUser.email;
+
+            // Automation & Gallery
+            window.DriveUI.accessToken = accessToken;
+            const folderName = `App-Data-${currentUser.name}`;
+            currentFolderId = await window.DriveUI.createFolderIfNotExists(folderName);
+            
+            await window.DriveUI.executeWithToken(currentUser, accessToken);
+            await loadGallery(currentFolderId);
+        }
+
+        async function loadGallery(folderId) {
+            const grid = document.getElementById('gallery-grid');
+            try {
+                const files = await window.DriveUI.listAllFiles(folderId);
+                console.log("Drive files found:", files.length, files);
+                
+                // Filter only images for the client gallery
+                const images = files.filter(f => f.mimeType.startsWith('image/'));
+                console.log("Images filtered:", images.length);
+                
+                if (images.length === 0) {
+                    grid.innerHTML = `<p style="color: #999; font-size: 14px; grid-column: 1/-1; text-align: center;">No photos found in folder <br><small style="color:#ccc">ID: ${folderId}</small><br>Ask Admin to upload some!</p>`;
+                    return;
+                }
+
+                grid.innerHTML = images.map(file => `
+                    <div class="gallery-item">
+                        <a href="${file.webViewLink}" target="_blank">
+                            <img src="${file.thumbnailLink.replace('=s220', '=s400')}" alt="${file.name}" title="${file.name}">
+                        </a>
+                    </div>
+                `).join('');
+            } catch (err) {
+                grid.innerHTML = `<p style="color: red;">Error loading gallery: ${err.message}</p>`;
+            }
+        }
+
+        function refreshCurrentGallery() {
+            if (currentFolderId) loadGallery(currentFolderId);
+        }
+    </script>
+</body>
+</html>

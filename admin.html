@@ -1,0 +1,219 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Admin Panel - TDS App (Drive Manager)</title>
+    <script src="https://accounts.google.com/gsi/client" async defer></script>
+    <script src="drive_v5.js"></script>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
+    <style>
+        :root {
+            --primary: #4285f4;
+            --bg: #f8f9fa;
+            --card: #ffffff;
+            --danger: #e53e3e;
+        }
+
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            background: var(--bg);
+            color: #333;
+            margin: 0;
+            padding: 40px 20px;
+        }
+
+        .container {
+            max-width: 1100px;
+            margin: 0 auto;
+        }
+
+        .header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 30px;
+            background: white;
+            padding: 20px;
+            border-radius: 12px;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        table {
+            width: 100%;
+            border-spacing: 0;
+            background: white;
+            border-radius: 12px;
+            overflow: hidden;
+            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.05);
+        }
+
+        th,
+        td {
+            padding: 16px;
+            text-align: left;
+            border-bottom: 1px solid #edf2f7;
+        }
+
+        th {
+            background: #f7fafc;
+            color: #4a5568;
+            text-transform: uppercase;
+            font-size: 12px;
+        }
+
+        .avatar {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            vertical-align: middle;
+            margin-right: 12px;
+            border: 2px solid white;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn {
+            background: var(--primary);
+            color: white;
+            border: none;
+            padding: 8px 16px;
+            border-radius: 6px;
+            cursor: pointer;
+            font-size: 14px;
+            text-decoration: none;
+            transition: 0.2s;
+        }
+
+        .btn:hover {
+            opacity: 0.9;
+        }
+
+        .btn-danger {
+            background: var(--danger);
+        }
+
+        .hidden {
+            display: none;
+        }
+
+        #auth-status {
+            font-size: 13px;
+            color: #48bb78;
+            margin-bottom: 5px;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="header">
+            <div>
+                <h1 style="margin:0; font-size: 24px;">Project Control Center</h1>
+                <p style="margin:5px 0 0; color: #718096;">Manage client files and Google Drive access.</p>
+            </div>
+            <div class="admin-auth">
+                <div id="auth-status" class="hidden"><i class="fas fa-check-circle"></i> Admin Live Access Active</div>
+                <div style="display:flex; gap:10px; justify-content: flex-end;">
+                    <button id="admin-login-btn" onclick="startAdminAuth()" class="btn"><i class="fab fa-google"></i>
+                        Connect Admin Google Account</button>
+                </div>
+            </div>
+        </div>
+
+        <table>
+            <thead>
+                <tr>
+                    <th>Client Profile</th>
+                    <th>Email Address</th>
+                    <th>Actions</th>
+                </tr>
+            </thead>
+            <tbody id="clients-tbody">
+                <tr>
+                    <td colspan="3" style="text-align:center; padding:40px; color:#a0aec0;">Loading clients...</td>
+                </tr>
+            </tbody>
+        </table>
+    </div>
+
+    <!-- Central config object loaded before scripts -->
+    <script>
+        window.APP_CONFIG = {
+            GOOGLE_CLIENT_ID: '154052449476-8ssomb0m7r801gqm5rc2k76d1p2ik1u3.apps.googleusercontent.com'
+        };
+    </script>
+    <script>
+        let adminToken = null;
+
+        // Auto-connect if token exists in session storage
+        window.onload = async () => {
+            const savedToken = sessionStorage.getItem('adminDriveToken');
+            if (savedToken) {
+                adminToken = savedToken;
+                window.DriveUI.accessToken = adminToken;
+                document.getElementById('auth-status').classList.remove('hidden');
+                document.getElementById('admin-login-btn').classList.add('hidden');
+            }
+            await loadClients();
+        };
+
+        async function loadClients() {
+            try {
+                const res = await fetch('/api/clients');
+                const clients = await res.json();
+                const tbody = document.getElementById('clients-tbody');
+
+                if (clients.length === 0) {
+                    tbody.innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px; color:#a0aec0;">No clients found in database.</td></tr>';
+                    return;
+                }
+
+                tbody.innerHTML = clients.map(client => `
+                    <tr id="row-${client.id}">
+                        <td>
+                            <img src="${client.picture}" class="avatar">
+                            <strong>${client.name}</strong>
+                            ${!client.drive_folder_id ?
+                        `<br><span style="color:var(--danger); font-size:11px;">⚠️ No Drive ID (Client must login first)</span>` :
+                        `<br><span style="color:#718096; font-size:10px;">ID: ${client.drive_folder_id}</span>`
+                    }
+                        </td>
+                        <td>${client.email}</td>
+                        <td>
+                            ${client.drive_folder_id ?
+                        `<a href="manage.html?id=${client.id}" class="btn" style="text-decoration: none;">
+                                    <i class="fas fa-eye"></i> Manage Files
+                                </a>` :
+                        `<span style="color: #a0aec0; font-size: 13px;">Waiting for Client</span>`
+                    }
+                        </td>
+                    </tr>
+                `).join('');
+            } catch (err) {
+                console.error("Failed to load clients", err);
+                document.getElementById('clients-tbody').innerHTML = '<tr><td colspan="3" style="text-align:center; padding:40px; color:var(--danger);">Error loading clients. Make sure the Node server is running.</td></tr>';
+            }
+        }
+
+        function startAdminAuth() {
+            const tokenClient = google.accounts.oauth2.initTokenClient({
+                client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
+                scope: 'https://www.googleapis.com/auth/drive',
+                callback: (response) => {
+                    if (response.access_token) {
+                        adminToken = response.access_token;
+                        window.DriveUI.accessToken = adminToken;
+                        sessionStorage.setItem('adminDriveToken', adminToken);
+
+                        document.getElementById('auth-status').classList.remove('hidden');
+                        document.getElementById('admin-login-btn').classList.add('hidden');
+                    }
+                },
+            });
+            tokenClient.requestAccessToken();
+        }
+    </script>
+</body>
+
+</html>

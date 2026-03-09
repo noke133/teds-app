@@ -1,0 +1,19 @@
+{
+  "name": "php_app",
+  "version": "1.0.0",
+  "description": "This folder contains the complete code for your TDS App, converted to HTML/CSS/PHP for easy hosting.",
+  "main": "drive_v5.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "type": "commonjs",
+  "dependencies": {
+    "cors": "^2.8.6",
+    "dotenv": "^17.3.1",
+    "express": "^5.2.1",
+    "mysql2": "^3.19.0"
+  }
+}

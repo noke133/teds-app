@@ -2,7 +2,10 @@ const express = require('express');
 const cors = require('cors');
 const path = require('path');
 const db = require('./db');
+const multer = require('multer');
 require('dotenv').config();
+
+const upload = multer({ storage: multer.memoryStorage() });
 
 const app = express();
 const PORT = process.env.PORT || 3000;
@@ -103,6 +106,129 @@ app.post('/api/clients/:id/unlink', async (req, res) => {
     } catch (err) {
         console.error(err);
         res.status(500).json({ error: 'Failed to unlink client' });
+    }
+});
+
+// --- PERSISTENT ADMIN AUTH (GOOGLE OAUTH2) ---
+
+// A. Exchange Auth Code for Refresh Token (One-time setup)
+app.post('/api/admin/auth/exchange', async (req, res) => {
+    const { code } = req.body;
+    if (!code) return res.status(400).json({ error: "Code missing" });
+
+    try {
+        const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+            body: new URLSearchParams({
+                code,
+                client_id: process.env.GOOGLE_CLIENT_ID,
+                client_secret: process.env.GOOGLE_CLIENT_SECRET,
+                redirect_uri: 'postmessage',
+                grant_type: 'authorization_code'
+            })
+        });
+
+        const data = await tokenRes.json();
+        if (data.error) throw new Error(data.error_description || data.error);
+
+        // Save refresh token to DB
+        await db.query(
+            'INSERT INTO settings (id, admin_refresh_token) VALUES (1, ?) ON DUPLICATE KEY UPDATE admin_refresh_token = ?',
+            [data.refresh_token, data.refresh_token]
+        );
+
+        res.json({ success: true, message: "Offline access enabled!" });
+    } catch (err) {
+        console.error("Token Exchange Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.get('/api/admin/auth/status', async (req, res) => {
+    try {
+        const [rows] = await db.query('SELECT admin_refresh_token FROM settings WHERE id = 1');
+        res.json({ connected: !!(rows[0] && rows[0].admin_refresh_token) });
+    } catch (err) {
+        res.json({ connected: false });
+    }
+});
+
+// Helper: Get fresh access token from Refresh Token
+async function getAdminAccessToken() {
+    const [rows] = await db.query('SELECT admin_refresh_token FROM settings WHERE id = 1');
+    if (!rows[0] || !rows[0].admin_refresh_token) throw new Error("No Admin Refresh Token found. Please connect admin account.");
+
+    const res = await fetch('https://oauth2.googleapis.com/token', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+        body: new URLSearchParams({
+            client_id: process.env.GOOGLE_CLIENT_ID,
+            client_secret: process.env.GOOGLE_CLIENT_SECRET,
+            refresh_token: rows[0].admin_refresh_token,
+            grant_type: 'refresh_token'
+        })
+    });
+
+    const data = await res.json();
+    if (data.error) throw new Error("Refresh failed: " + data.error);
+    return data.access_token;
+}
+
+// B. PROXY: List Drive Files
+app.get('/api/admin/drive/list/:folderId', async (req, res) => {
+    try {
+        const token = await getAdminAccessToken();
+        const q = `'${req.params.folderId}' in parents and trashed=false`;
+        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files?q=${encodeURIComponent(q)}&fields=files(id,name,thumbnailLink,mimeType,webViewLink)`, {
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        const data = await driveRes.json();
+        res.json(data.files || []);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// C. PROXY: Upload File
+app.post('/api/admin/drive/upload/:folderId', upload.single('file'), async (req, res) => {
+    try {
+        const token = await getAdminAccessToken();
+        const metadata = {
+            name: req.file.originalname,
+            parents: [req.params.folderId]
+        };
+
+        const form = new FormData();
+        form.append('metadata', new Blob([JSON.stringify(metadata)], { type: 'application/json' }));
+        form.append('file', new Blob([req.file.buffer], { type: req.file.mimetype }));
+
+        const driveRes = await fetch('https://www.googleapis.com/upload/drive/v3/files?uploadType=multipart&supportsAllDrives=true', {
+            method: 'POST',
+            headers: { Authorization: `Bearer ${token}` },
+            body: form
+        });
+
+        const data = await driveRes.json();
+        res.json(data);
+    } catch (err) {
+        console.error("Proxy Upload Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// D. PROXY: Delete File
+app.delete('/api/admin/drive/delete/:fileId', async (req, res) => {
+    try {
+        const token = await getAdminAccessToken();
+        const driveRes = await fetch(`https://www.googleapis.com/drive/v3/files/${req.params.fileId}`, {
+            method: 'DELETE',
+            headers: { Authorization: `Bearer ${token}` }
+        });
+        if (!driveRes.ok) throw new Error("Delete failed");
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
     }
 });
 

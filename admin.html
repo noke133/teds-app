@@ -146,20 +146,33 @@
     <script>
         let adminToken = null;
 
-        // Auto-connect if token exists in session storage
+        // Check if server is already connected (refresh token exists)
         window.onload = async () => {
-            const savedToken = sessionStorage.getItem('adminDriveToken');
-            if (savedToken) {
-                adminToken = savedToken;
-                window.DriveUI.accessToken = adminToken;
-                document.getElementById('auth-status').classList.remove('hidden');
-                document.getElementById('admin-login-btn').classList.add('hidden');
+            try {
+                const res = await fetch('/api/clients'); // Just use this as a health check for now
+                if (!res.ok) throw new Error("Server not responding");
+                await loadClients();
+
+                // If we get here, check if we need to show the login button
+                // (We'll improve this with a proper /api/admin/auth/status later)
+            } catch (err) {
+                console.error("Health check failed", err);
             }
-            await loadClients();
         };
 
         async function loadClients() {
             try {
+                // Check if admin is already connected to Google
+                const statusRes = await fetch('/api/admin/auth/status');
+                const status = await statusRes.json();
+                if (status.connected) {
+                    document.getElementById('auth-status').classList.remove('hidden');
+                    document.getElementById('admin-login-btn').classList.add('hidden');
+                } else {
+                    document.getElementById('auth-status').classList.add('hidden');
+                    document.getElementById('admin-login-btn').classList.remove('hidden');
+                }
+
                 const res = await fetch('/api/clients');
                 const clients = await res.json();
                 const tbody = document.getElementById('clients-tbody');
@@ -183,8 +196,8 @@
                         <td>
                             ${client.drive_folder_id ?
                         `<a href="manage.html?id=${client.id}" class="btn" style="text-decoration: none;">
-                                    <i class="fas fa-eye"></i> Manage Files
-                                </a>` :
+                                     <i class="fas fa-eye"></i> Manage Files
+                                 </a>` :
                         `<span style="color: #a0aec0; font-size: 13px;">Waiting for Client</span>`
                     }
                         </td>
@@ -197,21 +210,32 @@
         }
 
         function startAdminAuth() {
-            const tokenClient = google.accounts.oauth2.initTokenClient({
+            const tokenClient = google.accounts.oauth2.initCodeClient({
                 client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
                 scope: 'https://www.googleapis.com/auth/drive',
-                callback: (response) => {
-                    if (response.access_token) {
-                        adminToken = response.access_token;
-                        window.DriveUI.accessToken = adminToken;
-                        sessionStorage.setItem('adminDriveToken', adminToken);
-
-                        document.getElementById('auth-status').classList.remove('hidden');
-                        document.getElementById('admin-login-btn').classList.add('hidden');
+                ux_mode: 'popup',
+                callback: async (response) => {
+                    if (response.code) {
+                        try {
+                            const res = await fetch('/api/admin/auth/exchange', {
+                                method: 'POST',
+                                headers: { 'Content-Type': 'application/json' },
+                                body: JSON.stringify({ code: response.code })
+                            });
+                            const data = await res.json();
+                            if (data.success) {
+                                alert("Admin Google account connected! You now have persistent access.");
+                                location.reload();
+                            } else {
+                                alert("Connection failed: " + (data.error || "Unknown error"));
+                            }
+                        } catch (e) {
+                            alert("Server error during connection.");
+                        }
                     }
                 },
             });
-            tokenClient.requestAccessToken();
+            tokenClient.requestCode();
         }
     </script>
 </body>

@@ -6,7 +6,6 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Manage Files - TDS App</title>
     <script src="https://accounts.google.com/gsi/client" async defer></script>
-    <script src="drive_v5.js?v=1.5"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css">
     <style>
         :root {
@@ -207,29 +206,24 @@
                 </div>
             </div>
             <div>
-                <button type="button" class="btn btn-outline"
-                    style="padding: 8px 15px; font-size: 13px; margin-right: 15px;" onclick="checkFolderAccess()"
-                    title="Check if Admin can see/write to this folder">
-                    <i class="fas fa-stethoscope"></i> Check Access
-                </button>
                 <button type="button" class="btn btn-danger"
                     style="padding: 8px 15px; font-size: 13px; margin-right: 15px;" onclick="unlinkClient()"
                     title="Fix 404 Error if this folder is broken">
                     <i class="fas fa-unlink"></i> Reset Folder
                 </button>
-                <button id="admin-login-btn" onclick="startAdminAuth()" class="btn hidden"><i class="fab fa-google"></i>
-                    Connect Google Account</button>
+                <button id="admin-login-btn" onclick="location.href='admin.html'" class="btn hidden"><i
+                        class="fab fa-google"></i> Connect Admin Account</button>
                 <span id="auth-status" class="hidden" style="color: #48bb78; font-size: 14px; font-weight: 600;"><i
-                        class="fas fa-check-circle"></i> Connected</span>
+                        class="fas fa-check-circle"></i> Permanent Access Active</span>
             </div>
         </div>
 
         <div class="card">
-            <div id="auth-warning">
-                <h3 style="color: #c53030; margin-top: 0;">Admin Access Required</h3>
-                <p style="color: #4a5568; margin-bottom: 20px;">You must connect your Google account to view and upload
-                    files.</p>
-                <button onclick="startAdminAuth()" class="btn"><i class="fab fa-google"></i> Connect Now</button>
+            <div id="auth-warning" style="display: none;">
+                <h3 style="color: #c53030; margin-top: 0;">Admin Connection Required</h3>
+                <p style="color: #4a5568; margin-bottom: 20px;">You must connect your Google account in the Admin Panel
+                    to enable persistent file management.</p>
+                <a href="admin.html" class="btn">Go to Admin Panel</a>
             </div>
 
             <div id="manage-interface" class="hidden">
@@ -269,7 +263,6 @@
         const clientIdParam = urlParams.get('id');
         let clientId = null;
         let folderId = null;
-        let adminToken = null;
 
         window.onload = async () => {
             if (!clientIdParam) {
@@ -278,6 +271,16 @@
             }
 
             try {
+                // Check Admin Auth Status
+                const statusRes = await fetch('/api/admin/auth/status');
+                const status = await statusRes.json();
+
+                if (!status.connected) {
+                    document.getElementById('auth-warning').style.display = 'block';
+                    document.getElementById('app-container').style.display = 'block';
+                    return;
+                }
+
                 const res = await fetch('/api/clients/' + clientIdParam);
                 if (!res.ok) throw new Error("Client not found");
                 const client = await res.json();
@@ -295,26 +298,19 @@
                 document.getElementById('drive-link').href = `https://drive.google.com/drive/folders/${client.drive_folder_id}`;
                 document.title = "Manage Files - " + client.name;
 
+                document.getElementById('auth-status').classList.remove('hidden');
+                document.getElementById('manage-interface').classList.remove('hidden');
                 document.getElementById('app-container').style.display = 'block';
 
-                // Setup Admin Auth check
-                const savedToken = sessionStorage.getItem('adminDriveToken');
-                if (savedToken) {
-                    adminToken = savedToken;
-                    window.DriveUI.accessToken = adminToken;
-                    showInterface();
-                } else {
-                    document.getElementById('admin-login-btn').classList.remove('hidden');
-                    document.getElementById('auth-warning').style.display = 'block';
-                }
+                loadFiles();
 
             } catch (err) {
-                document.body.innerHTML = '<h2 style="text-align:center; margin-top:50px; color:var(--danger);">Client not found or Server Error.</h2>';
+                document.body.innerHTML = '<h2 style="text-align:center; margin-top:50px; color:var(--danger);">Error: ' + err.message + '</h2>';
             }
         };
 
         async function unlinkClient() {
-            if (!confirm('Are you sure you want to completely unlink this client\'s Google Drive folder? They will need to log in again to generate a new, working folder. Use this if you are getting a 404 Error!')) return;
+            if (!confirm('Are you sure you want to completely unlink this client\'s Google Drive folder? They will need to log in again to generate a new, working folder.')) return;
             try {
                 await fetch('/api/clients/' + clientId + '/unlink', { method: 'POST' });
                 window.location.href = 'admin.html?msg=client_unlinked';
@@ -323,68 +319,16 @@
             }
         }
 
-        function startAdminAuth() {
-            const tokenClient = google.accounts.oauth2.initTokenClient({
-                client_id: window.APP_CONFIG.GOOGLE_CLIENT_ID,
-                scope: 'https://www.googleapis.com/auth/drive',
-                callback: (response) => {
-                    if (response.access_token) {
-                        adminToken = response.access_token;
-                        window.DriveUI.accessToken = adminToken;
-                        sessionStorage.setItem('adminDriveToken', adminToken);
-                        showInterface();
-                    }
-                },
-            });
-            tokenClient.requestAccessToken();
-        }
-
-        function showInterface() {
-            document.getElementById('auth-warning').style.display = 'none';
-            document.getElementById('admin-login-btn').classList.add('hidden');
-            document.getElementById('auth-status').classList.remove('hidden');
-            document.getElementById('manage-interface').classList.remove('hidden');
-            loadFiles();
-        }
-
-        async function checkFolderAccess() {
-            if (!adminToken) { alert("Please connect your Google account first."); return; }
-            alert("Checking Drive Access... please wait.");
-            try {
-                // Test 1: List Files
-                const files = await window.DriveUI.listAllFiles(folderId);
-                console.log("Access Check: List Success", files.length, "files found.");
-
-                // Test 2: Get Metadata
-                const res = await fetch(`https://www.googleapis.com/drive/v3/files/${folderId}?fields=name,capabilities,ownedByMe,permissions`, {
-                    headers: { Authorization: `Bearer ${adminToken}` }
-                });
-                if (!res.ok) {
-                    const err = await res.json();
-                    alert(`Diagnostic Failed: Folder Visibility Error. Google says: ${err.error?.message || 'Unknown error'}`);
-                    return;
-                }
-                const meta = await res.json();
-                console.log("Access Check: Meta Success", meta);
-
-                const canWrite = meta.capabilities?.canAddChildren;
-                if (!canWrite) {
-                    alert(`Diagnostic Alert: You have READ access to this folder but NO WRITE access. \n\nThis means the Client didn't share it correctly with 'Writer' permissions. \n\nTry Clicking 'Reset Folder' then have the CLIENT login again.`);
-                } else {
-                    alert(`Diagnostic Result: EVERYTHING LOOKS GOOD! ✅\n\nName: ${meta.name}\nWrite Access: YES\n\nIf you still get 404 on upload, it might be a temporary Google glitch. Try refreshing.`);
-                }
-            } catch (err) {
-                alert(`Diagnostic Error: ${err.message}`);
-            }
-        }
-
         async function loadFiles() {
             const explorer = document.getElementById('file-explorer');
-            explorer.innerHTML = '<p style="color: #a0aec0; grid-column: 1/-1;">Refreshing...</p>';
+            explorer.innerHTML = '<p style="color: #a0aec0; grid-column: 1/-1;">Refreshing Gallery...</p>';
 
             try {
-                const files = await window.DriveUI.listAllFiles(folderId);
-                if (files.length === 0) {
+                const res = await fetch(`/api/admin/drive/list/${folderId}`);
+                if (!res.ok) throw new Error("Server failed to fetch library");
+                const files = await res.json();
+
+                if (!files || files.length === 0) {
                     explorer.innerHTML = '<p style="color: #718096; grid-column: 1/-1; text-align: center; padding: 40px; background: #f7fafc; border-radius: 8px;">No images have been uploaded yet.</p>';
                 } else {
                     explorer.innerHTML = files.map(file => `
@@ -401,7 +345,6 @@
                 console.error("List Error:", err);
                 explorer.innerHTML = `<div style="grid-column: 1/-1; border: 1px dashed #e53e3e; padding: 20px; background: #fff5f5; border-radius: 8px; text-align: center;">
                     <p style="color: var(--danger); font-weight: bold; margin: 0 0 10px 0;">Error loading files: ${err.message}</p>
-                    <p style="color: #718096; font-size: 13px; margin: 0;">If this says "404 Not Found", the Admin does not have permission to view this old folder. <br>Please click the red "Reset Folder Connection" button at the top right to unlink this client.</p>
                 </div>`;
             }
         }
@@ -409,7 +352,9 @@
         async function deleteFile(fileId) {
             if (!confirm("Are you sure you want to permanently delete this file from Google Drive?")) return;
             try {
-                await window.DriveUI.deleteFile(fileId);
+                const res = await fetch(`/api/admin/drive/delete/${fileId}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (!res.ok) throw new Error(data.error || "Delete failed");
                 await loadFiles();
             } catch (e) {
                 alert("Error deleting file: " + e.message);
@@ -421,15 +366,26 @@
         function dragLeave(el) { el.classList.remove('active'); }
 
         async function processFiles(files) {
-            if (!adminToken) return;
-
             const progress = document.getElementById('progress-text');
 
             for (let i = 0; i < files.length; i++) {
                 const file = files[i];
-                progress.innerText = `Uploading (${i + 1}/${files.length}): ${file.name}...`;
+                progress.innerText = `Uploading to Server (${i + 1}/${files.length}): ${file.name}...`;
+
+                const formData = new FormData();
+                formData.append('file', file);
+
                 try {
-                    await window.DriveUI.uploadFile(file, folderId);
+                    const res = await fetch(`/api/admin/drive/upload/${folderId}`, {
+                        method: 'POST',
+                        body: formData
+                    });
+
+                    if (!res.ok) {
+                        const err = await res.json();
+                        throw new Error(err.error || "Upload failed");
+                    }
+
                 } catch (err) {
                     alert(`Failed to upload ${file.name}: ${err.message}`);
                 }
@@ -447,7 +403,7 @@
 
         async function handleFileInput(e) {
             await processFiles(e.target.files);
-            e.target.value = ''; // Reset input to allow re-uploading the same file if needed
+            e.target.value = '';
         }
     </script>
 </body>

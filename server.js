@@ -63,8 +63,12 @@ app.post('/api/register', async (req, res) => {
             return res.json({ success: true, client: newClient[0] });
         }
     } catch (err) {
-        console.error(err);
-        res.status(500).json({ error: 'Database error during registration' });
+        console.error("Registration Error Detail:", err);
+        res.status(500).json({
+            error: 'Database error during registration',
+            details: err.message,
+            code: err.code
+        });
     }
 });
 

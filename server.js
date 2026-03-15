@@ -8,6 +8,7 @@ const path = require('path');
 const { Readable } = require('stream');
 const { google } = require('googleapis');
 const Busboy = require('busboy');
+const axios = require('axios'); // Added for direct API calls
 const { pool, initDB } = require('./db');
 require('dotenv').config();
 
@@ -380,6 +381,42 @@ app.post('/api/drive/upload/:folderId', requireAdmin, async (req, res) => {
     });
 
     req.pipe(bb);
+});
+
+// POST /api/drive/upload-session/:folderId — Create a resumable upload session
+// This returns a "Signed URL" from Google so the browser can upload DIRECTLY to Google.
+app.post('/api/drive/upload-session/:folderId', requireAdmin, async (req, res) => {
+    const { name, mimeType } = req.body;
+    if (!name || !mimeType) return res.status(400).json({ error: 'Missing name or mimeType' });
+
+    try {
+        const auth = await getAdminAuthClient();
+        const tokenResponse = await auth.getAccessToken();
+        const accessToken = tokenResponse.token;
+
+        // Request a session URL from Google
+        // Ref: https://developers.google.com/drive/api/guides/manage-uploads#resumable
+        const response = await axios({
+            method: 'post',
+            url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
+            headers: {
+                'Authorization': `Bearer ${accessToken}`,
+                'Content-Type': 'application/json; charset=UTF-8',
+                'X-Upload-Content-Type': mimeType,
+            },
+            data: {
+                name: name,
+                parents: [req.params.folderId]
+            }
+        });
+
+        // Google returns the session URL in the 'location' header
+        const sessionUrl = response.headers.location;
+        res.json({ sessionUrl });
+    } catch (err) {
+        console.error('❌ Session URL error:', err.response?.data || err.message);
+        res.status(500).json({ error: 'Failed to create upload session', details: err.response?.data?.error?.message });
+    }
 });
 
 // DELETE /api/drive/delete/:fileId — Delete a file from Drive

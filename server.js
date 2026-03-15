@@ -1,6 +1,7 @@
 // server.js — Main Express server
 const express = require('express');
 const session = require('express-session');
+const MySQLStore = require('express-mysql-session')(session);
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
@@ -17,11 +18,28 @@ const upload = multer({ storage: multer.memoryStorage() });
 app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+
+// MySQL-backed session store (survives server restarts)
+const sessionStore = new MySQLStore({
+    host:               process.env.DB_HOST,
+    port:               3306,
+    user:               process.env.DB_USER,
+    password:           process.env.DB_PASS,
+    database:           process.env.DB_NAME,
+    createDatabaseTable: true,
+    schema: {
+        tableName: 'sessions',
+        columnNames: { session_id: 'session_id', expires: 'expires', data: 'data' }
+    }
+});
+
 app.use(session({
+    key: 'driveshare_sid',
     secret: process.env.SESSION_SECRET || 'fallback_secret_change_me',
+    store: sessionStore,
     resave: false,
     saveUninitialized: false,
-    cookie: { maxAge: 24 * 60 * 60 * 1000 } // 24h
+    cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
@@ -167,7 +185,8 @@ app.get('/api/admin/status', requireAdmin, async (req, res) => {
 });
 
 // GET /api/admin/auth — Start Google OAuth flow for admin (offline access)
-app.get('/api/admin/auth', requireAdmin, (req, res) => {
+// No session required — Google itself is the auth. Token is saved to admin email from .env only.
+app.get('/api/admin/auth', (req, res) => {
     const oauth2Client = getOAuth2Client();
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',

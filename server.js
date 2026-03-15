@@ -121,8 +121,7 @@ app.post('/api/register', async (req, res) => {
             ON DUPLICATE KEY UPDATE
                 name = VALUES(name),
                 picture = VALUES(picture),
-                drive_folder_id = COALESCE(VALUES(drive_folder_id), drive_folder_id),
-                updated_at = NOW()
+                drive_folder_id = COALESCE(VALUES(drive_folder_id), drive_folder_id)
         `, [google_id, email, name, picture || null, drive_folder_id || null]);
 
         const [rows] = await pool.execute('SELECT * FROM clients WHERE google_id = ?', [google_id]);

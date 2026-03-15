@@ -29,6 +29,16 @@ async function initDB() {
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
 
+        // Safely add missing columns to existing tables (old schema compat)
+        for (const sql of [
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS picture TEXT",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS drive_folder_id VARCHAR(255)",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+        ]) {
+            try { await conn.execute(sql); } catch (e) { /* ignore: column exists or syntax not supported */ }
+        }
+
         // Admin tokens table (stores the refresh token)
         await conn.execute(`
             CREATE TABLE IF NOT EXISTS admin_tokens (

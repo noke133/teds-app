@@ -71,6 +71,35 @@ function requireAdmin(req, res, next) {
 // PUBLIC ROUTES
 // ═══════════════════════════════════════════════════════════════
 
+// GET /health — Debug endpoint (shows env and DB status)
+app.get('/health', async (req, res) => {
+    let dbStatus = 'untested';
+    try {
+        await pool.execute('SELECT 1');
+        dbStatus = 'connected';
+    } catch (e) {
+        dbStatus = 'ERROR: ' + e.message;
+    }
+    res.json({
+        status: 'running',
+        port: PORT,
+        db: dbStatus,
+        env: {
+            DB_HOST:               !!process.env.DB_HOST,
+            DB_USER:               !!process.env.DB_USER,
+            DB_PASS:               !!process.env.DB_PASS,
+            DB_NAME:               !!process.env.DB_NAME,
+            GOOGLE_CLIENT_ID:      !!process.env.GOOGLE_CLIENT_ID,
+            GOOGLE_CLIENT_SECRET:  !!process.env.GOOGLE_CLIENT_SECRET,
+            REDIRECT_URI:          process.env.REDIRECT_URI || 'NOT SET',
+            SESSION_SECRET:        !!process.env.SESSION_SECRET,
+            ADMIN_EMAIL:           process.env.ADMIN_EMAIL || 'NOT SET',
+            ADMIN_USER:            !!process.env.ADMIN_USER,
+            ADMIN_PASS:            !!process.env.ADMIN_PASS
+        }
+    });
+});
+
 // GET /api/config — Returns public config to frontend
 app.get('/api/config', (req, res) => {
     res.json({
@@ -318,12 +347,17 @@ app.get('*', (req, res) => {
 });
 
 // ─── Start Server ─────────────────────────────────────────────
+const server = app.listen(PORT, () => {
+    console.log(`🚀 Server running at http://localhost:${PORT}`);
+    console.log(`   Admin panel: http://localhost:${PORT}/admin.html`);
+    console.log(`   Health check: http://localhost:${PORT}/health`);
+    console.log(`   ENV CHECK: DB_HOST=${process.env.DB_HOST}, DB_NAME=${process.env.DB_NAME}`);
+});
+
+// Attempt DB init after server starts (non-blocking)
 initDB().then(() => {
-    app.listen(PORT, () => {
-        console.log(`🚀 Server running at http://localhost:${PORT}`);
-        console.log(`   Admin panel: http://localhost:${PORT}/admin.html`);
-    });
+    console.log('✅ Database ready.');
 }).catch(err => {
-    console.error('❌ Failed to initialize DB:', err.message);
-    process.exit(1);
+    console.error('⚠️  DB init failed (server still running):', err.message);
+    // Don't exit — server stays up so /health route can report the error
 });

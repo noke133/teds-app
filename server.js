@@ -210,31 +210,44 @@ app.get('/api/admin/callback', async (req, res) => {
     try {
         const oauth2Client = getOAuth2Client();
         const { tokens } = await oauth2Client.getToken(code);
+        console.log('OAuth tokens received:', { hasRefresh: !!tokens.refresh_token, hasAccess: !!tokens.access_token });
 
         if (!tokens.refresh_token) {
-            // Token already exists, try to use existing one
+            // No refresh_token = user already authorized this app before.
+            // Check if we already have one saved.
             const [existing] = await pool.execute(
                 'SELECT refresh_token FROM admin_tokens WHERE email = ? LIMIT 1',
                 [process.env.ADMIN_EMAIL]
             );
-            if (!existing.length) {
-                return res.redirect('/admin.html?error=no_refresh_token_revoke_and_retry');
+            if (existing.length && existing[0].refresh_token) {
+                // We already have a refresh_token — just update the access_token
+                await pool.execute(
+                    'UPDATE admin_tokens SET access_token = ?, token_expiry = ? WHERE email = ?',
+                    [tokens.access_token || null, tokens.expiry_date || null, process.env.ADMIN_EMAIL]
+                );
+                console.log('✅ Admin access_token updated (refresh_token already on file).');
+                return res.redirect('/admin.html?google=connected');
+            } else {
+                // No refresh_token anywhere — user must revoke and retry
+                return res.redirect('/admin.html?error=' + encodeURIComponent(
+                    'Google did not return a refresh token. Go to https://myaccount.google.com/permissions, revoke access for this app, then try Connect Google again.'
+                ));
             }
         }
 
+        // Save both tokens (no updated_at — let MySQL handle via ON UPDATE CURRENT_TIMESTAMP)
         await pool.execute(`
             INSERT INTO admin_tokens (email, refresh_token, access_token, token_expiry)
             VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
-                refresh_token = COALESCE(VALUES(refresh_token), refresh_token),
-                access_token = VALUES(access_token),
-                token_expiry = VALUES(token_expiry),
-                updated_at = NOW()
+                refresh_token = VALUES(refresh_token),
+                access_token  = VALUES(access_token),
+                token_expiry  = VALUES(token_expiry)
         `, [
             process.env.ADMIN_EMAIL,
-            tokens.refresh_token || null,
+            tokens.refresh_token,
             tokens.access_token || null,
-            tokens.expiry_date || null
+            tokens.expiry_date  || null
         ]);
 
         console.log('✅ Admin Google token saved.');

@@ -1,0 +1,141 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DriveShare — Client Portal</title>
+  <meta name="description" content="Secure client portal powered by Google Drive. Sign in to access your personal file storage." />
+  <link rel="stylesheet" href="style.css" />
+  <script src="https://accounts.google.com/gsi/client" async defer></script>
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════════════════════════════
+     LOGIN VIEW (shown before Google login)
+════════════════════════════════════════════ -->
+<div id="login-view" class="login-center">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">☁️</div>
+      <h1>DriveShare</h1>
+      <p>Your personal cloud storage, powered by Google Drive</p>
+    </div>
+
+    <div class="card">
+      <div class="card-title text-center mb-16">Welcome back</div>
+
+      <button class="btn btn-google btn-full btn-lg" id="google-login-btn" onclick="startGoogleLogin()">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
+        Continue with Google
+      </button>
+
+      <div class="divider"></div>
+
+      <div style="font-size:0.78rem; color:var(--text-secondary); text-align:center; line-height:1.7;">
+        By signing in, you authorize <strong>DriveShare</strong> to create and manage a dedicated folder in your Google Drive.
+        Your files are stored securely in your own Google account.
+      </div>
+    </div>
+
+    <p class="text-center text-muted mt-16" style="font-size:0.8rem;">
+      Are you an admin? <a href="admin.html" style="color:var(--accent-blue);">Admin Panel →</a>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     SETUP VIEW (shown after login, during folder setup)
+════════════════════════════════════════════ -->
+<div id="setup-view" class="login-center hidden">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">⚙️</div>
+      <h1>Setting Up</h1>
+      <p>Preparing your personal storage space…</p>
+    </div>
+    <div class="card">
+      <div id="setup-status" class="status-bar info">
+        <div class="spinner"></div>
+        <span>Initializing…</span>
+      </div>
+      <div class="progress-wrap mt-16">
+        <div class="progress-bar" id="setup-progress"></div>
+      </div>
+      <div id="setup-steps" style="margin-top:16px; font-size:0.82rem; color:var(--text-secondary); line-height:2;">
+        <div id="step-1">⬜ Authenticating with Google Drive…</div>
+        <div id="step-2">⬜ Creating your personal folder…</div>
+        <div id="step-3">⬜ Setting up access permissions…</div>
+        <div id="step-4">⬜ Syncing with server…</div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ═══════════════════════════════════════════
+     DASHBOARD VIEW (shown after setup)
+════════════════════════════════════════════ -->
+<div id="dashboard-view" class="hidden">
+  <div class="container">
+    <nav class="nav">
+      <a class="nav-brand" href="#">
+        <div class="brand-icon">☁️</div>
+        DriveShare
+      </a>
+      <div class="nav-actions">
+        <div class="profile-row">
+          <img id="dash-avatar" src="" alt="Avatar" class="avatar" onerror="this.style.display='none'" />
+          <div>
+            <div class="profile-name" id="dash-name">—</div>
+            <div class="profile-email" id="dash-email">—</div>
+          </div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
+      </div>
+    </nav>
+
+    <div class="page-header">
+      <h1>My Files</h1>
+      <p>Files shared with you by the admin appear below.</p>
+    </div>
+
+    <!-- Folder Info -->
+    <div class="card mb-16" id="folder-card">
+      <div class="section-header">
+        <div>
+          <div class="card-title">📁 Your Drive Folder</div>
+          <div class="card-sub" id="folder-name-sub">—</div>
+        </div>
+        <a id="folder-link" href="#" target="_blank" class="btn btn-primary btn-sm">Open in Drive ↗</a>
+      </div>
+    </div>
+
+    <!-- Files -->
+    <div class="card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Shared Files</div>
+          <div class="section-sub" id="files-count">—</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadFiles()">↻ Refresh</button>
+      </div>
+
+      <div id="files-container">
+        <div class="empty-state">
+          <div class="empty-icon">📂</div>
+          <h3>No files yet</h3>
+          <p>Files uploaded by the admin will appear here.</p>
+        </div>
+      </div>
+    </div>
+
+    <p class="text-center text-muted mt-24" style="font-size:0.78rem; padding-bottom:32px;">
+      DriveShare · Files are stored in your Google Drive account
+    </p>
+  </div>
+</div>
+
+<script src="drive.js"></script>
+</body>
+</html>

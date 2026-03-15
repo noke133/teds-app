@@ -1,0 +1,357 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DriveShare — Manage Client Files</title>
+  <meta name="description" content="Upload and manage files in a client's Google Drive folder." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════ LOADING ═══════════════════ -->
+<div id="loading-view" class="login-center">
+  <div class="status-bar info" style="max-width:340px">
+    <div class="spinner"></div>
+    <span>Loading client info…</span>
+  </div>
+</div>
+
+<!-- ═══════════════════ MAIN VIEW ═══════════════════ -->
+<div id="main-view" class="hidden">
+  <div class="container">
+    <nav class="nav">
+      <a class="nav-brand" href="admin.html">
+        <div class="brand-icon">☁️</div>
+        DriveShare <span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);margin-left:6px;">Admin</span>
+      </a>
+      <div class="nav-actions">
+        <button class="btn btn-ghost btn-sm" onclick="adminLogout()">Sign Out</button>
+      </div>
+    </nav>
+
+    <a href="admin.html" class="back-link mt-16" style="display:inline-flex;margin-top:24px;">← Back to Clients</a>
+
+    <!-- Client info card -->
+    <div class="card mb-16" id="client-card">
+      <div class="section-header">
+        <div class="profile-row">
+          <img id="c-avatar" src="" alt="" class="avatar" onerror="this.style.display='none'" style="width:52px;height:52px;" />
+          <div>
+            <div class="section-title" id="c-name">—</div>
+            <div class="section-sub" id="c-email">—</div>
+          </div>
+        </div>
+        <a id="c-drive-link" href="#" target="_blank" class="btn btn-ghost btn-sm">Open in Drive ↗</a>
+      </div>
+    </div>
+
+    <div id="no-folder-alert" class="alert alert-warning hidden">
+      ⚠️ This client has no Drive folder linked yet. Ask them to sign in first.
+    </div>
+
+    <!-- Upload Zone -->
+    <div class="card mb-16" id="upload-card">
+      <div class="card-title">Upload Files</div>
+      <div class="card-sub">Files will be uploaded directly to this client's Google Drive folder</div>
+
+      <div class="drop-zone" id="drop-zone">
+        <input type="file" id="file-input" multiple onchange="handleFileSelect(this.files)" />
+        <div class="drop-zone-icon">📤</div>
+        <h3>Drag files here or click to browse</h3>
+        <p>All file types supported · Multiple files allowed</p>
+      </div>
+
+      <!-- Upload queue -->
+      <div id="upload-queue" class="file-list mt-16" style="display:none;"></div>
+
+      <div class="mt-16" id="upload-actions" style="display:none;">
+        <div class="progress-wrap mb-16">
+          <div class="progress-bar" id="upload-progress"></div>
+        </div>
+        <div id="upload-status" class="status-bar info mb-16">
+          <div class="spinner"></div><span>Uploading…</span>
+        </div>
+        <div style="display:flex;gap:10px;">
+          <button class="btn btn-success" id="upload-btn" onclick="startUpload()">⬆ Upload All</button>
+          <button class="btn btn-ghost" onclick="clearQueue()">✕ Clear</button>
+        </div>
+      </div>
+    </div>
+
+    <!-- Files List -->
+    <div class="card">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Files in Folder</div>
+          <div class="section-sub" id="files-count">—</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadFiles()">↻ Refresh</button>
+      </div>
+      <div id="files-container">
+        <div class="status-bar info"><div class="spinner"></div><span>Loading files…</span></div>
+      </div>
+    </div>
+
+    <p class="text-center text-muted mt-24" style="font-size:0.78rem;padding-bottom:32px;">DriveShare Admin Panel</p>
+  </div>
+</div>
+
+<script>
+let clientId = null;
+let folderId = null;
+let pendingFiles = [];
+
+// ─── Init ───────────────────────────────────────────────
+window.addEventListener('DOMContentLoaded', async () => {
+  const params = new URLSearchParams(window.location.search);
+  clientId = params.get('id');
+  if (!clientId) { window.location.href = 'admin.html'; return; }
+
+  try {
+    const res = await fetch(`/api/clients/${clientId}`);
+    if (res.status === 401) { window.location.href = 'admin.html'; return; }
+    if (!res.ok) throw new Error('Client not found');
+    const client = await res.json();
+
+    document.getElementById('c-name').textContent  = client.name  || '—';
+    document.getElementById('c-email').textContent = client.email || '—';
+    document.getElementById('c-avatar').src        = client.picture || '';
+    document.title = `Manage — ${client.name} | DriveShare`;
+
+    folderId = client.drive_folder_id;
+    if (folderId) {
+      document.getElementById('c-drive-link').href = `https://drive.google.com/drive/folders/${folderId}`;
+      loadFiles();
+    } else {
+      document.getElementById('no-folder-alert').classList.remove('hidden');
+      document.getElementById('upload-card').style.opacity = '0.5';
+      document.getElementById('upload-card').style.pointerEvents = 'none';
+    }
+
+    switchView('main-view');
+  } catch (err) {
+    document.getElementById('loading-view').innerHTML =
+      `<div class="alert alert-error" style="max-width:420px">${err.message} — <a href="admin.html">Go back</a></div>`;
+  }
+});
+
+// ─── Drag & Drop ────────────────────────────────────────
+const dropZone = document.getElementById('drop-zone');
+dropZone.addEventListener('dragover', e => { e.preventDefault(); dropZone.classList.add('dragging'); });
+dropZone.addEventListener('dragleave', () => dropZone.classList.remove('dragging'));
+dropZone.addEventListener('drop', e => {
+  e.preventDefault();
+  dropZone.classList.remove('dragging');
+  handleFileSelect(e.dataTransfer.files);
+});
+
+// ─── File Selection ──────────────────────────────────────
+function handleFileSelect(fileList) {
+  pendingFiles = [...fileList];
+  if (!pendingFiles.length) return;
+  renderQueue();
+}
+
+function renderQueue() {
+  const q = document.getElementById('upload-queue');
+  const actions = document.getElementById('upload-actions');
+  if (!pendingFiles.length) { q.style.display='none'; actions.style.display='none'; return; }
+  q.style.display='flex';
+  actions.style.display='block';
+  q.innerHTML = pendingFiles.map((f, i) => `
+    <div class="file-item" id="qitem-${i}">
+      <div class="file-icon">${getFileIcon(f.type)}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.name)}</div>
+        <div class="file-meta">${formatSize(f.size)}</div>
+      </div>
+      <div class="file-actions">
+        <div class="badge badge-gray" id="qstatus-${i}">Pending</div>
+        <button class="btn btn-danger btn-sm" onclick="removeFromQueue(${i})">✕</button>
+      </div>
+    </div>`).join('');
+  document.getElementById('upload-status').style.display = 'none';
+  document.getElementById('upload-progress').style.width = '0%';
+}
+
+function removeFromQueue(i) {
+  pendingFiles.splice(i, 1);
+  renderQueue();
+}
+
+function clearQueue() {
+  pendingFiles = [];
+  document.getElementById('file-input').value = '';
+  renderQueue();
+}
+
+// ─── Upload ──────────────────────────────────────────────
+async function startUpload() {
+  if (!folderId) { toast('No Drive folder linked to this client.', 'error'); return; }
+  if (!pendingFiles.length) { toast('No files selected.', 'error'); return; }
+
+  const btn = document.getElementById('upload-btn');
+  const statusEl = document.getElementById('upload-status');
+  const progressEl = document.getElementById('upload-progress');
+  btn.disabled = true;
+  statusEl.style.display = 'flex';
+  statusEl.className = 'status-bar info mb-16';
+  statusEl.innerHTML = '<div class="spinner"></div><span>Starting upload…</span>';
+
+  let done = 0;
+  let errors = 0;
+
+  for (let i = 0; i < pendingFiles.length; i++) {
+    const file = pendingFiles[i];
+    const statusBadge = document.getElementById(`qstatus-${i}`);
+    if (statusBadge) { statusBadge.className = 'badge badge-blue'; statusBadge.textContent = 'Uploading…'; }
+
+    statusEl.innerHTML = `<div class="spinner"></div><span>Uploading ${escHtml(file.name)} (${i+1}/${pendingFiles.length})…</span>`;
+    progressEl.style.width = `${Math.round(((i) / pendingFiles.length) * 100)}%`;
+
+    const fd = new FormData();
+    fd.append('file', file);
+
+    try {
+      const res = await fetch(`/api/drive/upload/${folderId}`, { method: 'POST', body: fd });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.error || 'Upload failed');
+      if (statusBadge) { statusBadge.className = 'badge badge-green'; statusBadge.textContent = '✅ Done'; }
+      done++;
+    } catch (err) {
+      if (statusBadge) { statusBadge.className = 'badge badge-gray'; statusBadge.textContent = '❌ Failed'; }
+      toast(`Failed: ${file.name} — ${err.message}`, 'error');
+      errors++;
+    }
+  }
+
+  progressEl.style.width = '100%';
+  if (errors === 0) {
+    statusEl.className = 'status-bar success mb-16';
+    statusEl.innerHTML = `✅ <span>${done} file${done!==1?'s':''} uploaded successfully!</span>`;
+    toast(`${done} file${done!==1?'s':''} uploaded!`, 'success');
+  } else {
+    statusEl.className = 'status-bar error mb-16';
+    statusEl.innerHTML = `⚠️ <span>${done} uploaded, ${errors} failed.</span>`;
+  }
+
+  btn.disabled = false;
+  pendingFiles = [];
+  document.getElementById('file-input').value = '';
+  loadFiles();
+}
+
+// ─── Load Files ──────────────────────────────────────────
+async function loadFiles() {
+  const container = document.getElementById('files-container');
+  container.innerHTML = `<div class="status-bar info"><div class="spinner"></div><span>Loading…</span></div>`;
+  try {
+    const res = await fetch(`/api/drive/list/${folderId}`);
+    if (!res.ok) {
+      const e = await res.json();
+      throw new Error(e.error || 'Failed to list files');
+    }
+    const files = await res.json();
+    document.getElementById('files-count').textContent = files.length === 0 ? 'No files' : `${files.length} file${files.length!==1?'s':''}`;
+
+    if (files.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No files yet</h3><p>Upload files above to add them here.</p></div>`;
+      return;
+    }
+    container.innerHTML = `<div class="file-list">${files.map(fileItemHTML).join('')}</div>`;
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-error">❌ ${escHtml(err.message)}</div>`;
+  }
+}
+
+function fileItemHTML(f) {
+  const icon = getFileIcon(f.mimeType);
+  const size = f.size ? formatSize(parseInt(f.size)) : '—';
+  const date = f.createdTime ? new Date(f.createdTime).toLocaleDateString() : '';
+  return `
+    <div class="file-item" id="file-${f.id}">
+      <div class="file-icon">${icon}</div>
+      <div class="file-info">
+        <div class="file-name">${escHtml(f.name)}</div>
+        <div class="file-meta">${size}${date ? ' · ' + date : ''}</div>
+      </div>
+      <div class="file-actions">
+        <a href="${f.webViewLink}" target="_blank" class="btn btn-ghost btn-sm">↗ Open</a>
+        <button class="btn btn-danger btn-sm" onclick="deleteFile('${f.id}','${escHtml(f.name)}')">🗑 Delete</button>
+      </div>
+    </div>`;
+}
+
+// ─── Delete File ─────────────────────────────────────────
+async function deleteFile(fileId, name) {
+  if (!confirm(`Delete "${name}"? This cannot be undone.`)) return;
+  try {
+    const res = await fetch(`/api/drive/delete/${fileId}`, { method: 'DELETE' });
+    if (!res.ok) { const e=await res.json(); throw new Error(e.error); }
+    toast(`Deleted "${name}"`, 'success');
+    document.getElementById(`file-${fileId}`)?.remove();
+    const countEl = document.getElementById('files-count');
+    const cur = parseInt(countEl.textContent) || 0;
+    const newVal = cur - 1;
+    countEl.textContent = newVal <= 0 ? 'No files' : `${newVal} file${newVal!==1?'s':''}`;
+    if (newVal <= 0) {
+      document.getElementById('files-container').innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No files yet</h3><p>Upload files above.</p></div>`;
+    }
+  } catch (err) {
+    toast('Delete failed: ' + err.message, 'error');
+  }
+}
+
+// ─── Admin Logout ────────────────────────────────────────
+async function adminLogout() {
+  await fetch('/api/admin/logout', { method: 'POST' });
+  window.location.href = 'admin.html';
+}
+
+// ─── Utility ─────────────────────────────────────────────
+function switchView(id) {
+  ['loading-view','main-view'].forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4500);
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function formatSize(b) {
+  if (b < 1024) return b + ' B';
+  if (b < 1024*1024) return (b/1024).toFixed(1) + ' KB';
+  if (b < 1024*1024*1024) return (b/1024/1024).toFixed(1) + ' MB';
+  return (b/1024/1024/1024).toFixed(2) + ' GB';
+}
+
+function getFileIcon(mimeType) {
+  if (!mimeType) return '📄';
+  if (mimeType.startsWith('image/')) return '🖼️';
+  if (mimeType.startsWith('video/')) return '🎬';
+  if (mimeType.startsWith('audio/')) return '🎵';
+  if (mimeType.includes('pdf')) return '📕';
+  if (mimeType.includes('spreadsheet')||mimeType.includes('excel')) return '📊';
+  if (mimeType.includes('presentation')||mimeType.includes('powerpoint')) return '📽️';
+  if (mimeType.includes('document')||mimeType.includes('word')) return '📝';
+  if (mimeType.includes('zip')||mimeType.includes('archive')) return '🗜️';
+  if (mimeType.includes('folder')) return '📁';
+  return '📄';
+}
+</script>
+</body>
+</html>

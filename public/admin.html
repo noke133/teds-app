@@ -1,0 +1,279 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DriveShare — Admin Panel</title>
+  <meta name="description" content="Admin panel to manage clients and upload files to their Google Drive folders." />
+  <link rel="stylesheet" href="style.css" />
+</head>
+<body>
+
+<div id="toast-container"></div>
+
+<!-- ═══════════════════ LOGIN VIEW ═══════════════════ -->
+<div id="login-view" class="login-center">
+  <div class="login-box">
+    <div class="login-logo">
+      <div class="logo-icon">🔐</div>
+      <h1>Admin Panel</h1>
+      <p>Sign in to manage client folders</p>
+    </div>
+
+    <div class="card">
+      <div id="login-error" class="alert alert-error hidden"></div>
+
+      <div class="form-group">
+        <label class="form-label" for="username">Username</label>
+        <input id="username" class="form-input" type="text" placeholder="admin" autocomplete="username" />
+      </div>
+      <div class="form-group">
+        <label class="form-label" for="password">Password</label>
+        <input id="password" class="form-input" type="password" placeholder="••••••••" autocomplete="current-password" onkeydown="if(event.key==='Enter')adminLogin()" />
+      </div>
+      <button class="btn btn-primary btn-full" id="login-btn" onclick="adminLogin()">Sign In</button>
+    </div>
+
+    <p class="text-center text-muted mt-16" style="font-size:0.8rem;">
+      ← <a href="index.html" style="color:var(--accent-blue);">Back to Client Portal</a>
+    </p>
+  </div>
+</div>
+
+<!-- ═══════════════════ DASHBOARD VIEW ═══════════════════ -->
+<div id="dashboard-view" class="hidden">
+  <div class="container">
+    <nav class="nav">
+      <a class="nav-brand" href="#">
+        <div class="brand-icon">☁️</div>
+        DriveShare <span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);margin-left:6px;">Admin</span>
+      </a>
+      <div class="nav-actions">
+        <div id="google-status-badge"></div>
+        <button class="btn btn-ghost btn-sm" id="connect-google-btn" onclick="connectGoogle()" title="Connect Google Account for server-side uploads">
+          🔗 Connect Google
+        </button>
+        <button class="btn btn-ghost btn-sm" onclick="adminLogout()">Sign Out</button>
+      </div>
+    </nav>
+
+    <div id="google-alert" class="mt-16 hidden"></div>
+
+    <!-- Stats -->
+    <div class="grid-3 mt-24" id="stats-row">
+      <div class="stat-card">
+        <div class="stat-label">Total Clients</div>
+        <div class="stat-value blue" id="stat-clients">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Connected to Drive</div>
+        <div class="stat-value green" id="stat-connected">—</div>
+      </div>
+      <div class="stat-card">
+        <div class="stat-label">Pending Setup</div>
+        <div class="stat-value purple" id="stat-pending">—</div>
+      </div>
+    </div>
+
+    <!-- Clients Table -->
+    <div class="card mt-24">
+      <div class="section-header">
+        <div>
+          <div class="section-title">Clients</div>
+          <div class="section-sub">All registered clients and their Drive folders</div>
+        </div>
+        <button class="btn btn-ghost btn-sm" onclick="loadClients()">↻ Refresh</button>
+      </div>
+
+      <div id="clients-container">
+        <div class="status-bar info"><div class="spinner"></div><span>Loading clients…</span></div>
+      </div>
+    </div>
+
+    <p class="text-center text-muted mt-24" style="font-size:0.78rem; padding-bottom:32px;">DriveShare Admin Panel</p>
+  </div>
+</div>
+
+<script>
+// ─── Global state ─────────────────────────────────────────
+let isAdmin = false;
+
+// ─── Check URL params (Google auth redirect) ──────────────
+function checkUrlParams() {
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('google') === 'connected') {
+    showAlert('google-alert', '✅ Google account connected successfully! Server-side uploads are now enabled.', 'success');
+    window.history.replaceState({}, '', '/admin.html');
+  } else if (p.get('error')) {
+    showAlert('google-alert', '❌ Google connect error: ' + decodeURIComponent(p.get('error')), 'error');
+    window.history.replaceState({}, '', '/admin.html');
+  }
+}
+
+// ─── Admin Login ──────────────────────────────────────────
+async function adminLogin() {
+  const username = document.getElementById('username').value.trim();
+  const password = document.getElementById('password').value;
+  const btn = document.getElementById('login-btn');
+  const errBox = document.getElementById('login-error');
+
+  if (!username || !password) {
+    showMsg(errBox, 'Please enter username and password.'); return;
+  }
+
+  btn.disabled = true;
+  btn.textContent = 'Signing in…';
+  errBox.classList.add('hidden');
+
+  try {
+    const res = await fetch('/api/admin/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ username, password })
+    });
+    const data = await res.json();
+    if (!res.ok) throw new Error(data.error || 'Login failed');
+    isAdmin = true;
+    switchView('dashboard-view');
+    checkUrlParams();
+    await checkGoogleStatus();
+    loadClients();
+  } catch (err) {
+    showMsg(errBox, err.message);
+  } finally {
+    btn.disabled = false;
+    btn.textContent = 'Sign In';
+  }
+}
+
+// ─── Admin Logout ─────────────────────────────────────────
+async function adminLogout() {
+  await fetch('/api/admin/logout', { method: 'POST' });
+  switchView('login-view');
+}
+
+// ─── Check Google Connection Status ──────────────────────
+async function checkGoogleStatus() {
+  try {
+    const res = await fetch('/api/admin/status');
+    const data = await res.json();
+    const badge = document.getElementById('google-status-badge');
+    const btn = document.getElementById('connect-google-btn');
+    if (data.googleConnected) {
+      badge.innerHTML = `<span class="badge badge-green">● Google Connected</span>`;
+      btn.textContent = '↻ Reconnect Google';
+      btn.title = 'Re-authorize Google (only needed if token expires)';
+    } else {
+      badge.innerHTML = `<span class="badge badge-yellow">⚠ Google Not Connected</span>`;
+      showAlert('google-alert',
+        '⚠️ Google account not connected. Click <strong>Connect Google</strong> in the top-right corner to enable file uploads.',
+        'warning');
+    }
+  } catch (e) { /* ignore */ }
+}
+
+// ─── Connect Google (server-side OAuth) ──────────────────
+function connectGoogle() {
+  window.location.href = '/api/admin/auth';
+}
+
+// ─── Load Clients ─────────────────────────────────────────
+async function loadClients() {
+  const container = document.getElementById('clients-container');
+  try {
+    const res = await fetch('/api/clients');
+    if (!res.ok) throw new Error('Failed to load clients');
+    const clients = await res.json();
+
+    const connected = clients.filter(c => c.drive_folder_id).length;
+    document.getElementById('stat-clients').textContent = clients.length;
+    document.getElementById('stat-connected').textContent = connected;
+    document.getElementById('stat-pending').textContent = clients.length - connected;
+
+    if (clients.length === 0) {
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon">👥</div><h3>No clients yet</h3><p>Clients will appear here after they sign in.</p></div>`;
+      return;
+    }
+
+    container.innerHTML = `
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>Client</th>
+              <th>Email</th>
+              <th>Drive Folder</th>
+              <th>Joined</th>
+              <th>Actions</th>
+            </tr>
+          </thead>
+          <tbody>
+            ${clients.map(clientRow).join('')}
+          </tbody>
+        </table>
+      </div>`;
+  } catch (err) {
+    container.innerHTML = `<div class="alert alert-error">❌ ${err.message}</div>`;
+    toast(err.message, 'error');
+  }
+}
+
+function clientRow(c) {
+  const joined = c.created_at ? new Date(c.created_at).toLocaleDateString() : '—';
+  const folderBadge = c.drive_folder_id
+    ? `<span class="badge badge-green">● Linked</span>`
+    : `<span class="badge badge-yellow">⚠ Not Linked</span>`;
+  const manageBtn = c.drive_folder_id
+    ? `<a href="manage.html?id=${c.id}" class="btn btn-primary btn-sm">📂 Manage Files</a>`
+    : `<span class="btn btn-ghost btn-sm" style="opacity:0.4;cursor:default;">No Folder</span>`;
+  return `
+    <tr>
+      <td>
+        <div class="profile-row">
+          <img src="${escHtml(c.picture || '')}" alt="" class="avatar" onerror="this.style.display='none'" />
+          <div class="profile-name">${escHtml(c.name)}</div>
+        </div>
+      </td>
+      <td style="color:var(--text-secondary)">${escHtml(c.email)}</td>
+      <td>${folderBadge}</td>
+      <td style="color:var(--text-secondary);font-size:0.82rem">${joined}</td>
+      <td>${manageBtn}</td>
+    </tr>`;
+}
+
+// ─── Utility ─────────────────────────────────────────────
+function switchView(id) {
+  ['login-view','dashboard-view'].forEach(v => {
+    const el = document.getElementById(v);
+    if (el) el.classList.toggle('hidden', v !== id);
+  });
+}
+
+function showAlert(id, msg, type) {
+  const el = document.getElementById(id);
+  if (!el) return;
+  el.className = `alert alert-${type}`;
+  el.innerHTML = msg;
+  el.classList.remove('hidden');
+}
+
+function showMsg(el, msg) {
+  el.textContent = msg;
+  el.classList.remove('hidden');
+}
+
+function escHtml(str) {
+  return String(str).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+
+function toast(msg, type = 'info') {
+  const c = document.getElementById('toast-container');
+  const t = document.createElement('div');
+  t.className = `toast ${type}`;
+  t.textContent = msg;
+  c.appendChild(t);
+  setTimeout(() => t.remove(), 4000);
+}
+</script>
+</body>
+</html>

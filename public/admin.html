@@ -98,6 +98,33 @@
 // ─── Global state ─────────────────────────────────────────
 let isAdmin = false;
 
+// ─── Auto-check session on page load ─────────────────────
+// Runs when Google OAuth redirects back to admin.html
+window.addEventListener('DOMContentLoaded', async () => {
+  try {
+    const res = await fetch('/api/admin/status');
+    if (res.ok) {
+      const data = await res.json();
+      if (data.loggedIn) {
+        isAdmin = true;
+        switchView('dashboard-view');
+        checkUrlParams(); // show ?google=connected banner
+        await checkGoogleStatus();
+        loadClients();
+        return;
+      }
+    }
+  } catch (e) { /* no session, fall through to login */ }
+  switchView('login-view');
+  // Show error from URL even on login page
+  const p = new URLSearchParams(window.location.search);
+  if (p.get('error')) {
+    const errBox = document.getElementById('login-error');
+    showMsg(errBox, '❌ Google error: ' + decodeURIComponent(p.get('error')));
+    window.history.replaceState({}, '', '/admin.html');
+  }
+});
+
 // ─── Check URL params (Google auth redirect) ──────────────
 function checkUrlParams() {
   const p = new URLSearchParams(window.location.search);

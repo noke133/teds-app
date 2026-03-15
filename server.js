@@ -7,6 +7,7 @@ const cors = require('cors');
 const path = require('path');
 const { Readable } = require('stream');
 const { google } = require('googleapis');
+const Busboy = require('busboy');
 const { pool, initDB } = require('./db');
 require('dotenv').config();
 
@@ -325,37 +326,60 @@ app.get('/api/drive/list/:folderId', requireAdmin, async (req, res) => {
     }
 });
 
-// POST /api/drive/upload/:folderId — Upload file to a client folder
-app.post('/api/drive/upload/:folderId', requireAdmin, upload.single('file'), async (req, res) => {
-    if (!req.file) return res.status(400).json({ error: 'No file uploaded.' });
+// POST /api/drive/upload/:folderId — Upload file to a client folder (Streaming Optimized)
+app.post('/api/drive/upload/:folderId', requireAdmin, async (req, res) => {
+    const bb = Busboy({ headers: req.headers });
+    let fileUploaded = false;
 
-    try {
-        const auth = await getAdminAuthClient();
-        const drive = google.drive({ version: 'v3', auth });
+    bb.on('file', async (name, file, info) => {
+        const { filename, mimeType } = info;
+        fileUploaded = true;
+        console.log(`📡 Starting streaming upload: ${filename} (${mimeType})`);
 
-        // Convert buffer to readable stream
-        const fileStream = new Readable();
-        fileStream.push(req.file.buffer);
-        fileStream.push(null);
+        try {
+            const auth = await getAdminAuthClient();
+            const drive = google.drive({ version: 'v3', auth });
 
-        const response = await drive.files.create({
-            requestBody: {
-                name: req.file.originalname,
-                mimeType: req.file.mimetype,
-                parents: [req.params.folderId]
-            },
-            media: {
-                mimeType: req.file.mimetype,
-                body: fileStream
-            },
-            fields: 'id, name, mimeType, size, webViewLink, thumbnailLink'
-        });
+            // Google Drive API: Direct streaming using 'resumable' for performance
+            const response = await drive.files.create({
+                requestBody: {
+                    name: filename,
+                    mimeType: mimeType,
+                    parents: [req.params.folderId]
+                },
+                media: {
+                    mimeType: mimeType,
+                    body: file
+                },
+                resumable: true // Crucial for large files
+            });
 
-        res.json({ success: true, file: response.data });
-    } catch (err) {
-        console.error('Drive upload error:', err.message);
-        res.status(500).json({ error: err.message });
-    }
+            console.log(`✅ Streaming upload complete: ${filename}`);
+            if (!res.headersSent) {
+                res.json({ success: true, file: response.data });
+            }
+        } catch (err) {
+            console.error('❌ Streaming upload error:', err.message);
+            if (!res.headersSent) {
+                res.status(500).json({ error: err.message });
+            }
+        }
+    });
+
+    bb.on('finish', () => {
+        if (!fileUploaded && !res.headersSent) {
+            res.status(400).json({ error: 'No file found in request.' });
+        }
+    });
+
+    bb.on('error', (err) => {
+        console.error('❌ Busboy error:', err);
+        if (!res.headersSent) {
+            res.status(500).json({ error: 'Upload stream error.' });
+        }
+    });
+
+    req.pipe(bb);
 });
 
 // DELETE /api/drive/delete/:fileId — Delete a file from Drive

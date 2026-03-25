@@ -1,14 +1,14 @@
-// server.js — Main Express server
+// server.js — Main Express server (SaaS Version)
 const express = require('express');
 const session = require('express-session');
 const MySQLStore = require('express-mysql-session')(session);
 const multer = require('multer');
 const cors = require('cors');
 const path = require('path');
-const { Readable } = require('stream');
 const { google } = require('googleapis');
 const Busboy = require('busboy');
-const axios = require('axios'); // Added for direct API calls
+const axios = require('axios');
+const crypto = require('crypto');
 const { pool, initDB } = require('./db');
 require('dotenv').config();
 
@@ -21,7 +21,6 @@ app.use(cors());
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// MySQL-backed session store (survives server restarts)
 const sessionStore = new MySQLStore({
     host:               process.env.DB_HOST,
     port:               3306,
@@ -45,7 +44,7 @@ app.use(session({
 }));
 app.use(express.static(path.join(__dirname, 'public')));
 
-// ─── Google OAuth2 Client (for Admin server-side) ─────────────
+// ─── Google OAuth2 Client ─────────────
 function getOAuth2Client() {
     return new google.auth.OAuth2(
         process.env.GOOGLE_CLIENT_ID,
@@ -54,13 +53,31 @@ function getOAuth2Client() {
     );
 }
 
-// ─── Helper: Get Admin OAuth2 Client with stored tokens ───────
-async function getAdminAuthClient() {
+// ─── Middleware: Require Admin (Photographer) ─────────────────
+function requireAdmin(req, res, next) {
+    if (req.session && req.session.adminId) return next();
+    return res.status(401).json({ error: 'Unauthorized. Please log in as photographer.' });
+}
+
+// ─── Middleware: Require Super Admin ──────────────────────────
+function requireSuperAdmin(req, res, next) {
+    if (req.session && req.session.superAdminId) return next();
+    return res.status(401).json({ error: 'Unauthorized. Super Admin access required.' });
+}
+
+// ─── Middleware: Require Client ───────────────────────────────
+function requireClient(req, res, next) {
+    if (req.session && req.session.clientId) return next();
+    return res.status(401).json({ error: 'Unauthorized. Please log in with your gallery code.' });
+}
+
+// Helper: Get Google Auth Client for specific photographer
+async function getAdminAuthClient(adminId) {
     const [rows] = await pool.execute(
-        'SELECT * FROM admin_tokens WHERE email = ? LIMIT 1',
-        [process.env.ADMIN_EMAIL]
+        'SELECT * FROM admin_tokens WHERE admin_id = ? LIMIT 1',
+        [adminId]
     );
-    if (!rows.length) throw new Error('Admin not connected to Google. Please authorize first via /api/admin/auth');
+    if (!rows.length) throw new Error('Photographer not connected to Google. Please connect first.');
 
     const tokenData = rows[0];
     const oauth2Client = getOAuth2Client();
@@ -70,28 +87,19 @@ async function getAdminAuthClient() {
         expiry_date: tokenData.token_expiry
     });
 
-    // Auto-refresh if expired
     oauth2Client.on('tokens', async (tokens) => {
         await pool.execute(
-            'UPDATE admin_tokens SET access_token = ?, token_expiry = ? WHERE email = ?',
-            [tokens.access_token, tokens.expiry_date, process.env.ADMIN_EMAIL]
+            'UPDATE admin_tokens SET access_token = ?, token_expiry = ? WHERE admin_id = ?',
+            [tokens.access_token, tokens.expiry_date, adminId]
         );
     });
 
     return oauth2Client;
 }
 
-// ─── Middleware: Require Admin Session ────────────────────────
-function requireAdmin(req, res, next) {
-    if (req.session && req.session.isAdmin) return next();
-    return res.status(401).json({ error: 'Unauthorized. Please log in as admin.' });
-}
-
 // ═══════════════════════════════════════════════════════════════
 // PUBLIC ROUTES
 // ═══════════════════════════════════════════════════════════════
-
-// GET /health — Debug endpoint (shows env and DB status)
 app.get('/health', async (req, res) => {
     let dbStatus = 'untested';
     try {
@@ -100,159 +108,131 @@ app.get('/health', async (req, res) => {
     } catch (e) {
         dbStatus = 'ERROR: ' + e.message;
     }
-    res.json({
-        status: 'running',
-        port: PORT,
-        db: dbStatus,
-        env: {
-            DB_HOST:               !!process.env.DB_HOST,
-            DB_USER:               !!process.env.DB_USER,
-            DB_PASS:               !!process.env.DB_PASS,
-            DB_NAME:               !!process.env.DB_NAME,
-            GOOGLE_CLIENT_ID:      !!process.env.GOOGLE_CLIENT_ID,
-            GOOGLE_CLIENT_SECRET:  !!process.env.GOOGLE_CLIENT_SECRET,
-            REDIRECT_URI:          process.env.REDIRECT_URI || 'NOT SET',
-            SESSION_SECRET:        !!process.env.SESSION_SECRET,
-            ADMIN_EMAIL:           process.env.ADMIN_EMAIL || 'NOT SET',
-            ADMIN_USER:            !!process.env.ADMIN_USER,
-            ADMIN_PASS:            !!process.env.ADMIN_PASS
-        }
-    });
+    res.json({ status: 'running', port: PORT, db: dbStatus });
 });
 
-// GET /api/config — Returns public config to frontend
 app.get('/api/config', (req, res) => {
-    res.json({
-        GOOGLE_CLIENT_ID: process.env.GOOGLE_CLIENT_ID,
-        ADMIN_EMAIL: process.env.ADMIN_EMAIL
-    });
+    // Only send what's strictly needed for public
+    res.json({ title: 'Photographer SaaS' });
 });
 
-// POST /api/register — Called by client after Drive folder is created
-app.post('/api/register', async (req, res) => {
-    const { google_id, email, name, picture, drive_folder_id } = req.body;
-    if (!google_id || !email || !name) {
-        return res.status(400).json({ error: 'Missing required fields.' });
+// ═══════════════════════════════════════════════════════════════
+// SUPER ADMIN ROUTES
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/superadmin/login', async (req, res) => {
+    const { username, password } = req.body;
+    // For simplicity without bcrypt, exact match from DB (in production use bcrypt!)
+    const [rows] = await pool.execute('SELECT id FROM super_admins WHERE username = ? AND password = ?', [username, password]);
+    if (rows.length > 0) {
+        req.session.superAdminId = rows[0].id;
+        return res.json({ success: true });
     }
-    try {
-        await pool.execute(`
-            INSERT INTO clients (google_id, email, name, picture, drive_folder_id)
-            VALUES (?, ?, ?, ?, ?)
-            ON DUPLICATE KEY UPDATE
-                name = VALUES(name),
-                picture = VALUES(picture),
-                drive_folder_id = COALESCE(VALUES(drive_folder_id), drive_folder_id)
-        `, [google_id, email, name, picture || null, drive_folder_id || null]);
+    res.status(401).json({ error: 'Invalid super admin credentials' });
+});
 
-        const [rows] = await pool.execute('SELECT * FROM clients WHERE google_id = ?', [google_id]);
-        res.json({ success: true, client: rows[0] });
+app.post('/api/superadmin/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+app.get('/api/superadmin/status', requireSuperAdmin, (req, res) => {
+    res.json({ loggedIn: true });
+});
+
+app.get('/api/superadmin/admins', requireSuperAdmin, async (req, res) => {
+    // List all photographers
+    const [rows] = await pool.execute('SELECT id, username, email, created_at FROM admins ORDER BY created_at DESC');
+    res.json(rows);
+});
+
+app.post('/api/superadmin/admins', requireSuperAdmin, async (req, res) => {
+    const { username, password, email } = req.body;
+    try {
+        await pool.execute('INSERT INTO admins (username, password, email) VALUES (?, ?, ?)', [username, password, email]);
+        res.json({ success: true });
     } catch (err) {
-        console.error('Register error:', err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.delete('/api/superadmin/admins/:id', requireSuperAdmin, async (req, res) => {
+    try {
+        await pool.execute('DELETE FROM admins WHERE id = ?', [req.params.id]);
+        res.json({ success: true });
+    } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
 // ═══════════════════════════════════════════════════════════════
-// ADMIN AUTH ROUTES
+// PHOTOGRAPHER (ADMIN) ROUTES
 // ═══════════════════════════════════════════════════════════════
-
-// POST /api/admin/login — Admin site login with username/password
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', async (req, res) => {
     const { username, password } = req.body;
-    if (username === process.env.ADMIN_USER && password === process.env.ADMIN_PASS) {
-        req.session.isAdmin = true;
-        req.session.adminEmail = process.env.ADMIN_EMAIL;
+    const [rows] = await pool.execute('SELECT id, email FROM admins WHERE username = ? AND password = ?', [username, password]);
+    if (rows.length > 0) {
+        req.session.adminId = rows[0].id;
         return res.json({ success: true });
     }
-    res.status(401).json({ error: 'Invalid credentials.' });
+    res.status(401).json({ error: 'Invalid photographer credentials.' });
 });
 
-// POST /api/admin/logout
 app.post('/api/admin/logout', (req, res) => {
     req.session.destroy();
     res.json({ success: true });
 });
 
-// GET /api/admin/status — Check if admin is logged in and Google is connected
 app.get('/api/admin/status', requireAdmin, async (req, res) => {
     try {
-        const [rows] = await pool.execute(
-            'SELECT id, email, updated_at FROM admin_tokens WHERE email = ? LIMIT 1',
-            [process.env.ADMIN_EMAIL]
-        );
-        res.json({ loggedIn: true, googleConnected: rows.length > 0, tokenInfo: rows[0] || null });
+        const [rows] = await pool.execute('SELECT id FROM admin_tokens WHERE admin_id = ?', [req.session.adminId]);
+        res.json({ loggedIn: true, googleConnected: rows.length > 0 });
     } catch (err) {
         res.json({ loggedIn: true, googleConnected: false });
     }
 });
 
-// GET /api/admin/auth — Start Google OAuth flow for admin (offline access)
-// No session required — Google itself is the auth. Token is saved to admin email from .env only.
-app.get('/api/admin/auth', (req, res) => {
+app.get('/api/admin/auth', requireAdmin, (req, res) => {
     const oauth2Client = getOAuth2Client();
+    const state = req.session.adminId.toString(); // Pass photographer ID through state
     const authUrl = oauth2Client.generateAuthUrl({
         access_type: 'offline',
         scope: ['https://www.googleapis.com/auth/drive'],
-        prompt: 'consent', // Always show consent to ensure refresh_token is returned
-        login_hint: process.env.ADMIN_EMAIL
+        prompt: 'consent',
+        state: state
     });
     res.redirect(authUrl);
 });
 
-// GET /api/admin/callback — Handle OAuth callback, save refresh_token
 app.get('/api/admin/callback', async (req, res) => {
-    const { code, error } = req.query;
-    if (error) {
-        return res.redirect('/admin.html?error=' + encodeURIComponent(error));
-    }
-    if (!code) {
-        return res.redirect('/admin.html?error=no_code');
-    }
+    const { code, state, error } = req.query;
+    if (error) return res.redirect('/admin.html?error=' + encodeURIComponent(error));
+    if (!code) return res.redirect('/admin.html?error=no_code');
+    const adminId = parseInt(state, 10);
+    if (!adminId) return res.redirect('/admin.html?error=invalid_state');
 
     try {
         const oauth2Client = getOAuth2Client();
         const { tokens } = await oauth2Client.getToken(code);
-        console.log('OAuth tokens received:', { hasRefresh: !!tokens.refresh_token, hasAccess: !!tokens.access_token });
-
-        if (!tokens.refresh_token) {
-            // No refresh_token = user already authorized this app before.
-            // Check if we already have one saved.
-            const [existing] = await pool.execute(
-                'SELECT refresh_token FROM admin_tokens WHERE email = ? LIMIT 1',
-                [process.env.ADMIN_EMAIL]
-            );
+        
+        let refreshTokenToSave = tokens.refresh_token;
+        if (!refreshTokenToSave) {
+            const [existing] = await pool.execute('SELECT refresh_token FROM admin_tokens WHERE admin_id = ? LIMIT 1', [adminId]);
             if (existing.length && existing[0].refresh_token) {
-                // We already have a refresh_token — just update the access_token
-                await pool.execute(
-                    'UPDATE admin_tokens SET access_token = ?, token_expiry = ? WHERE email = ?',
-                    [tokens.access_token || null, tokens.expiry_date || null, process.env.ADMIN_EMAIL]
-                );
-                console.log('✅ Admin access_token updated (refresh_token already on file).');
-                return res.redirect('/admin.html?google=connected');
+                refreshTokenToSave = existing[0].refresh_token;
             } else {
-                // No refresh_token anywhere — user must revoke and retry
-                return res.redirect('/admin.html?error=' + encodeURIComponent(
-                    'Google did not return a refresh token. Go to https://myaccount.google.com/permissions, revoke access for this app, then try Connect Google again.'
-                ));
+                return res.redirect('/admin.html?error=' + encodeURIComponent('Google did not return a refresh token. Revoke access from Google and try again.'));
             }
         }
 
-        // Save both tokens (no updated_at — let MySQL handle via ON UPDATE CURRENT_TIMESTAMP)
         await pool.execute(`
-            INSERT INTO admin_tokens (email, refresh_token, access_token, token_expiry)
+            INSERT INTO admin_tokens (admin_id, refresh_token, access_token, token_expiry)
             VALUES (?, ?, ?, ?)
             ON DUPLICATE KEY UPDATE
                 refresh_token = VALUES(refresh_token),
                 access_token  = VALUES(access_token),
                 token_expiry  = VALUES(token_expiry)
-        `, [
-            process.env.ADMIN_EMAIL,
-            tokens.refresh_token,
-            tokens.access_token || null,
-            tokens.expiry_date  || null
-        ]);
+        `, [adminId, refreshTokenToSave, tokens.access_token || null, tokens.expiry_date || null]);
 
-        console.log('✅ Admin Google token saved.');
         res.redirect('/admin.html?google=connected');
     } catch (err) {
         console.error('OAuth callback error:', err);
@@ -260,196 +240,222 @@ app.get('/api/admin/callback', async (req, res) => {
     }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// ADMIN CLIENT MANAGEMENT ROUTES (Protected)
-// ═══════════════════════════════════════════════════════════════
-
-// GET /api/clients — Get all clients
+// Photographer Client Management
 app.get('/api/clients', requireAdmin, async (req, res) => {
     try {
-        const [rows] = await pool.execute(
-            'SELECT id, google_id, email, name, picture, drive_folder_id, created_at, updated_at FROM clients ORDER BY created_at DESC'
-        );
+        const [rows] = await pool.execute('SELECT * FROM clients WHERE admin_id = ? ORDER BY created_at DESC', [req.session.adminId]);
         res.json(rows);
     } catch (err) {
-        console.error('Get clients error:', err);
         res.status(500).json({ error: err.message });
     }
 });
 
-// GET /api/clients/:id — Get single client
-app.get('/api/clients/:id', requireAdmin, async (req, res) => {
+app.post('/api/clients', requireAdmin, async (req, res) => {
+    const { name } = req.body;
+    if (!name) return res.status(400).json({ error: 'Client name needed.' });
+    
+    // Generate a 6-digit random code
+    const passcode = Math.floor(100000 + Math.random() * 900000).toString();
     try {
-        const [rows] = await pool.execute(
-            'SELECT * FROM clients WHERE id = ?',
-            [req.params.id]
+        // Also create a root folder in Google Drive for this client
+        const auth = await getAdminAuthClient(req.session.adminId);
+        const drive = google.drive({ version: 'v3', auth });
+        
+        const folder = await drive.files.create({
+            requestBody: { name: `Client_${name}_${passcode}`, mimeType: 'application/vnd.google-apps.folder' },
+            fields: 'id'
+        });
+
+        const [result] = await pool.execute(
+            'INSERT INTO clients (admin_id, name, passcode, drive_folder_id) VALUES (?, ?, ?, ?)',
+            [req.session.adminId, name, passcode, folder.data.id]
         );
-        if (!rows.length) return res.status(404).json({ error: 'Client not found.' });
-        res.json(rows[0]);
+        res.json({ success: true, clientId: result.insertId, passcode: passcode, folderId: folder.data.id });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// POST /api/clients/:id/unlink — Unlink Drive folder from client
-app.post('/api/clients/:id/unlink', requireAdmin, async (req, res) => {
+// Create subfolder for a client
+app.post('/api/drive/folders/:folderId', requireAdmin, async (req, res) => {
+    const { name } = req.body;
     try {
-        await pool.execute(
-            'UPDATE clients SET drive_folder_id = NULL WHERE id = ?',
-            [req.params.id]
-        );
-        res.json({ success: true });
+        const auth = await getAdminAuthClient(req.session.adminId);
+        const drive = google.drive({ version: 'v3', auth });
+
+        const folder = await drive.files.create({
+            requestBody: {
+                name: name,
+                mimeType: 'application/vnd.google-apps.folder',
+                parents: [req.params.folderId]
+            },
+            fields: 'id'
+        });
+        res.json({ success: true, folderId: folder.data.id });
     } catch (err) {
         res.status(500).json({ error: err.message });
     }
 });
 
-// ═══════════════════════════════════════════════════════════════
-// DRIVE PROXY ROUTES (Server-side using Admin Token)
-// ═══════════════════════════════════════════════════════════════
-
-// GET /api/drive/list/:folderId — List files in a client folder
+// Admin fetching clients' drive contents
 app.get('/api/drive/list/:folderId', requireAdmin, async (req, res) => {
     try {
-        const auth = await getAdminAuthClient();
+        const auth = await getAdminAuthClient(req.session.adminId);
         const drive = google.drive({ version: 'v3', auth });
 
         const response = await drive.files.list({
             q: `'${req.params.folderId}' in parents and trashed=false`,
-            fields: 'files(id, name, mimeType, size, thumbnailLink, webViewLink, createdTime)',
+            fields: 'files(id, name, mimeType, size, thumbnailLink, webContentLink, createdTime)',
             orderBy: 'createdTime desc'
         });
-
         res.json(response.data.files || []);
     } catch (err) {
-        console.error('Drive list error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// POST /api/drive/upload/:folderId — Upload file to a client folder (Streaming Optimized)
-app.post('/api/drive/upload/:folderId', requireAdmin, async (req, res) => {
-    const bb = Busboy({ headers: req.headers });
-    let fileUploaded = false;
-
-    bb.on('file', async (name, file, info) => {
-        const { filename, mimeType } = info;
-        fileUploaded = true;
-        console.log(`📡 Starting streaming upload: ${filename} (${mimeType})`);
-
-        try {
-            const auth = await getAdminAuthClient();
-            const drive = google.drive({ version: 'v3', auth });
-
-            // Google Drive API: Direct streaming using 'resumable' for performance
-            const response = await drive.files.create({
-                requestBody: {
-                    name: filename,
-                    mimeType: mimeType,
-                    parents: [req.params.folderId]
-                },
-                media: {
-                    mimeType: mimeType,
-                    body: file
-                },
-                resumable: true // Crucial for large files
-            });
-
-            console.log(`✅ Streaming upload complete: ${filename}`);
-            if (!res.headersSent) {
-                res.json({ success: true, file: response.data });
-            }
-        } catch (err) {
-            console.error('❌ Streaming upload error:', err.message);
-            if (!res.headersSent) {
-                res.status(500).json({ error: err.message });
-            }
-        }
-    });
-
-    bb.on('finish', () => {
-        if (!fileUploaded && !res.headersSent) {
-            res.status(400).json({ error: 'No file found in request.' });
-        }
-    });
-
-    bb.on('error', (err) => {
-        console.error('❌ Busboy error:', err);
-        if (!res.headersSent) {
-            res.status(500).json({ error: 'Upload stream error.' });
-        }
-    });
-
-    req.pipe(bb);
-});
-
-// POST /api/drive/upload-session/:folderId — Create a resumable upload session
-// This returns a "Signed URL" from Google so the browser can upload DIRECTLY to Google.
+// Admin upload session
 app.post('/api/drive/upload-session/:folderId', requireAdmin, async (req, res) => {
     const { name, mimeType } = req.body;
-    if (!name || !mimeType) return res.status(400).json({ error: 'Missing name or mimeType' });
-
     try {
-        const auth = await getAdminAuthClient();
+        const auth = await getAdminAuthClient(req.session.adminId);
         const tokenResponse = await auth.getAccessToken();
-        const accessToken = tokenResponse.token;
-
-        // Request a session URL from Google
-        // Ref: https://developers.google.com/drive/api/guides/manage-uploads#resumable
         const response = await axios({
             method: 'post',
             url: 'https://www.googleapis.com/upload/drive/v3/files?uploadType=resumable',
             headers: {
-                'Authorization': `Bearer ${accessToken}`,
+                'Authorization': `Bearer ${tokenResponse.token}`,
                 'Content-Type': 'application/json; charset=UTF-8',
                 'X-Upload-Content-Type': mimeType,
             },
-            data: {
-                name: name,
-                parents: [req.params.folderId]
-            }
+            data: { name: name, parents: [req.params.folderId] }
         });
-
-        // Google returns the session URL in the 'location' header
-        const sessionUrl = response.headers.location;
-        res.json({ sessionUrl });
+        res.json({ sessionUrl: response.headers.location });
     } catch (err) {
-        console.error('❌ Session URL error:', err.response?.data || err.message);
-        res.status(500).json({ error: 'Failed to create upload session', details: err.response?.data?.error?.message });
+        res.status(500).json({ error: 'Failed to create upload session', details: err.response?.data || err.message });
     }
 });
 
-// DELETE /api/drive/delete/:fileId — Delete a file from Drive
+// Admin proxy delete
 app.delete('/api/drive/delete/:fileId', requireAdmin, async (req, res) => {
     try {
-        const auth = await getAdminAuthClient();
+        const auth = await getAdminAuthClient(req.session.adminId);
         const drive = google.drive({ version: 'v3', auth });
-
         await drive.files.delete({ fileId: req.params.fileId });
         res.json({ success: true });
     } catch (err) {
-        console.error('Drive delete error:', err.message);
         res.status(500).json({ error: err.message });
     }
 });
 
-// ─── Catch-all: serve index.html for SPA-style routing ────────
+
+// ═══════════════════════════════════════════════════════════════
+// CLIENT ROUTES (GALLERY)
+// ═══════════════════════════════════════════════════════════════
+app.post('/api/client/login', async (req, res) => {
+    const { passcode } = req.body;
+    if (!passcode) return res.status(400).json({ error: 'Passcode required' });
+    
+    const [rows] = await pool.execute('SELECT * FROM clients WHERE passcode = ?', [passcode]);
+    if (rows.length === 0) return res.status(401).json({ error: 'Invalid passcode.' });
+    
+    const client = rows[0];
+    req.session.clientId = client.id;
+    req.session.clientAdminId = client.admin_id; // Need this to access drive api
+    req.session.driveFolderId = client.drive_folder_id;
+    
+    res.json({ success: true, name: client.name });
+});
+
+app.post('/api/client/logout', (req, res) => {
+    req.session.destroy();
+    res.json({ success: true });
+});
+
+app.get('/api/client/status', requireClient, async (req, res) => {
+    const [rows] = await pool.execute('SELECT name FROM clients WHERE id = ?', [req.session.clientId]);
+    res.json({ loggedIn: true, name: rows[0]?.name });
+});
+
+// Client view their own gallery (fetches from root folder and subfolders)
+// For simplicity, we assume one level inside root, or list all images in folder tree
+app.get('/api/client/gallery', requireClient, async (req, res) => {
+    try {
+        const auth = await getAdminAuthClient(req.session.clientAdminId);
+        const drive = google.drive({ version: 'v3', auth });
+        
+        // Find files in the client root folder AND subfolders
+        // Better: Find all files that are owned by photographer and NOT trashed...
+        // For a true nested tree we'd recursively get. Here we just query the root directly.
+        const response = await drive.files.list({
+            q: `'${req.session.driveFolderId}' in parents and trashed=false`, // Just listing root folder for now
+            fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
+            orderBy: 'createdTime desc'
+        });
+        
+        // Let's find subfolders to see inside them too
+        const subfolders = response.data.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+        const images = response.data.files.filter(f => f.mimeType.startsWith('image/'));
+        
+        // Optional: fetch images in subfolders
+        for (let sf of subfolders) {
+            const sfRes = await drive.files.list({
+                q: `'${sf.id}' in parents and trashed=false and mimeType contains 'image/'`,
+                fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
+            });
+            images.push(...(sfRes.data.files || []).map(f => ({...f, folderName: sf.name})));
+        }
+
+        res.json(images);
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// Client Selections endpoints
+app.get('/api/client/selections', requireClient, async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT file_id FROM client_selections WHERE client_id = ?', [req.session.clientId]);
+        res.json(rows.map(r => r.file_id));
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+app.post('/api/client/selections', requireClient, async (req, res) => {
+    const { file_id, selected } = req.body;
+    try {
+        if (selected) {
+            await pool.execute('INSERT IGNORE INTO client_selections (client_id, file_id) VALUES (?, ?)', [req.session.clientId, file_id]);
+        } else {
+            await pool.execute('DELETE FROM client_selections WHERE client_id = ? AND file_id = ?', [req.session.clientId, file_id]);
+        }
+        res.json({ success: true });
+    } catch (err) {
+        res.status(500).json({ error: err.message });
+    }
+});
+
+// ─── Routing mappings ─────────────────────────────────────────
+
+app.get('/superadmin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'superadmin.html')));
+app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
+app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+
 app.get('*', (req, res) => {
-    res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    // If client HTML request
+    if (req.accepts('html')) {
+        res.sendFile(path.join(__dirname, 'public', 'index.html'));
+    } else {
+        res.status(404).end();
+    }
 });
 
 // ─── Start Server ─────────────────────────────────────────────
 const server = app.listen(PORT, () => {
-    console.log(`🚀 Server running at http://localhost:${PORT}`);
-    console.log(`   Admin panel: http://localhost:${PORT}/admin.html`);
-    console.log(`   Health check: http://localhost:${PORT}/health`);
-    console.log(`   ENV CHECK: DB_HOST=${process.env.DB_HOST}, DB_NAME=${process.env.DB_NAME}`);
+    console.log(`🚀 Photographer SaaS App running at http://localhost:${PORT}`);
+    console.log(`   ENV CHECK: DB_HOST=${process.env.DB_HOST}`);
 });
 
-// Attempt DB init after server starts (non-blocking)
-initDB().then(() => {
-    console.log('✅ Database ready.');
-}).catch(err => {
-    console.error('⚠️  DB init failed (server still running):', err.message);
-    // Don't exit — server stays up so /health route can report the error
-});
+initDB().then(() => console.log('✅ Database ready.'))
+        .catch(err => console.error('⚠️ DB init failed:', err.message));

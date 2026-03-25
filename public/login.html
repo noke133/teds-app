@@ -1,0 +1,90 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Client Gallery Login</title>
+  <meta name="viewport" content="width=viewport-fit=cover, width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <link rel="stylesheet" href="/style.css">
+  <style>
+    /* Sleek Mobile Centered Auth */
+    body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
+    .auth-container { width: 100%; max-width: 400px; padding: 30px; text-align: center; }
+    .icon { font-size: 3rem; margin-bottom: 20px; }
+    h1 { font-size: 1.8rem; font-weight: 600; margin-bottom: 10px; }
+    p { color: rgba(255,255,255,0.6); margin-bottom: 30px; font-size: 0.95rem; }
+    .code-input {
+      background: rgba(255,255,255,0.08);
+      border: 1px solid rgba(255,255,255,0.2);
+      border-radius: 12px;
+      padding: 18px;
+      width: 100%;
+      text-align: center;
+      font-size: 1.5rem;
+      letter-spacing: 5px;
+      color: #fff;
+      backdrop-filter: blur(10px);
+      transition: border 0.3s;
+    }
+    .code-input:focus { outline: none; border-color: #0A84FF; }
+    .btn-login {
+      margin-top: 20px;
+      width: 100%;
+      padding: 16px;
+      border-radius: 12px;
+      background: #0A84FF; /* iPhone Blue */
+      color: #fff;
+      font-size: 1.1rem;
+      font-weight: 600;
+      border: none;
+      cursor: pointer;
+    }
+    .btn-login:hover { background: #0070DF; }
+  </style>
+</head>
+<body>
+
+<div class="auth-container">
+  <div class="icon">📸</div>
+  <h1>Your Gallery</h1>
+  <p>Enter the passcode provided by your photographer to view your photos.</p>
+
+  <form id="clientLoginForm">
+    <input type="text" id="passcode" class="code-input" placeholder="000000" autocomplete="off" required>
+    <button type="submit" class="btn-login">View Gallery</button>
+  </form>
+</div>
+
+<div id="toast-container" style="display:none;"></div>
+<script>
+  // Auto-fill code from URL ?code=123456
+  const urlParams = new URLSearchParams(window.location.search);
+  const code = urlParams.get('code');
+  if(code) {
+    document.getElementById('passcode').value = code;
+    // Auto submit if desired, but user interaction is better for mobile browsers
+  }
+
+  document.getElementById('clientLoginForm').onsubmit = async (e) => {
+    e.preventDefault();
+    const passcode = document.getElementById('passcode').value.trim();
+    if(!passcode) return;
+
+    try {
+      const res = await fetch('/api/client/login', {
+        method: 'POST',
+        headers: {'Content-Type': 'application/json'},
+        body: JSON.stringify({passcode})
+      });
+      const data = await res.json();
+      if(res.ok) {
+        window.location.href = '/'; // Redirect to gallery
+      } else {
+        alert(data.error || 'Invalid passcode');
+      }
+    } catch(err) {
+      alert('Network error. Please try again.');
+    }
+  };
+</script>
+</body>
+</html>

@@ -1,141 +1,333 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>DriveShare — Client Portal</title>
-  <meta name="description" content="Secure client portal powered by Google Drive. Sign in to access your personal file storage." />
-  <link rel="stylesheet" href="style.css" />
-  <script src="https://accounts.google.com/gsi/client" async defer></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=viewport-fit=cover, width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Gallery</title>
+  <style>
+    /* iOS Photos App Inspired Styles */
+    :root {
+      --bg: #000;
+      --text: #fff;
+      --accent: #0A84FF; /* iOS Blue */
+      --nav-bg: rgba(25, 25, 25, 0.85); /* Translucent dark */
+      --border: rgba(255, 255, 255, 0.15);
+      --red: #FF453A;
+    }
+    body, html {
+      margin: 0; padding: 0; width: 100%; height: 100%;
+      background: var(--bg); color: var(--text);
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+      overscroll-behavior-y: none; /* Prevent pull-to-refresh bounce */
+      -webkit-font-smoothing: antialiased;
+    }
+
+    /* Fixed Header */
+    header {
+      position: fixed; top: 0; left: 0; right: 0;
+      height: 44px; /* iOS standard */
+      padding-top: env(safe-area-inset-top); /* Handle Notch */
+      background: var(--nav-bg);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      display: flex; align-items: center; justify-content: space-between;
+      padding-left: 16px; padding-right: 16px;
+      z-index: 100;
+      border-bottom: 0.5px solid var(--border);
+    }
+    header h1 { font-size: 17px; font-weight: 600; margin: 0; }
+    .header-btn {
+      color: var(--accent); background: none; border: none; font-size: 17px;
+      padding: 0; cursor: pointer;
+    }
+
+    /* Main Content Area */
+    main {
+      padding-top: calc(44px + env(safe-area-inset-top));
+      padding-bottom: calc(50px + env(safe-area-inset-bottom));
+      height: 100vh; box-sizing: border-box;
+      overflow-y: scroll;
+      -webkit-overflow-scrolling: touch; /* Smooth iOS scroll */
+    }
+
+    /* Image Grid (Photos style) */
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr); /* 3 columns like iOS Photos */
+      gap: 2px; /* Super tight gap */
+    }
+    .grid-item {
+      position: relative;
+      aspect-ratio: 1 / 1; /* Square thumbnails */
+      background: #222; /* Placeholder */
+      overflow: hidden;
+    }
+    .grid-item img {
+      width: 100%; height: 100%; object-fit: cover;
+      display: block;
+    }
+    
+    /* Selection Heart Overlay */
+    .heart-btn {
+      position: absolute;
+      bottom: 4px; right: 4px;
+      width: 28px; height: 28px;
+      background: rgba(0,0,0,0.4);
+      border-radius: 50%;
+      display: flex; align-items: center; justify-content: center;
+      color: rgba(255,255,255,0.7);
+      font-size: 16px;
+      border: 1px solid rgba(255,255,255,0.2);
+      cursor: pointer; backdrop-filter: blur(4px);
+    }
+    .heart-btn.selected {
+      color: var(--red);
+      background: rgba(255,255,255,0.9);
+      border: 1px solid #fff;
+    }
+
+    /* Bottom Tab Navigation */
+    nav {
+      position: fixed; bottom: 0; left: 0; right: 0;
+      height: 50px;
+      padding-bottom: env(safe-area-inset-bottom);
+      background: var(--nav-bg);
+      backdrop-filter: saturate(180%) blur(20px);
+      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      display: flex; align-items: center; justify-content: space-evenly;
+      border-top: 0.5px solid var(--border);
+      z-index: 100;
+    }
+    .tab {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      width: 50%; height: 100%; color: #8E8E93;
+      font-size: 10px; font-weight: 500; text-decoration: none;
+      cursor: pointer;
+    }
+    .tab.active { color: var(--accent); }
+    .tab-icon { font-size: 20px; margin-bottom: 2px; }
+
+    /* Lightbox (Full Screen View) */
+    #lightbox {
+      position: fixed; inset: 0; z-index: 200;
+      background: #000;
+      display: none; flex-direction: column;
+    }
+    .lb-header {
+      height: 44px; padding-top: env(safe-area-inset-top);
+      display: flex; justify-content: space-between; align-items: center;
+      padding-left: 16px; padding-right: 16px;
+      background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+    }
+    .lb-content {
+      flex: 1; display: flex; align-items: center; justify-content: center;
+      overflow: hidden;
+    }
+    .lb-content img {
+      max-width: 100%; max-height: 100%; object-fit: contain;
+    }
+    /* Simple CSS Spinner */
+    .loader { margin: auto; border: 3px solid rgba(255,255,255,0.1); border-top-color: #fff; width: 24px; height: 24px; border-radius: 50%; animation: spin 1s linear infinite; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .hidden { display: none !important; }
+
+    /* Section Headers */
+    .folder-title {
+      grid-column: 1 / -1;
+      font-size: 15px; font-weight: 600;
+      padding: 12px 16px 4px;
+      background: var(--bg);
+      position: sticky; top: 0; z-index: 10;
+    }
+
+  </style>
 </head>
 <body>
 
-<div id="toast-container"></div>
+<header>
+  <h1 id="headerTitle">Library</h1>
+  <button class="header-btn" onclick="logout()">Log Out</button>
+</header>
 
-<!-- ═══════════════════════════════════════════
-     LOGIN VIEW (shown before Google login)
-════════════════════════════════════════════ -->
-<div id="login-view" class="login-center">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="logo-icon">☁️</div>
-      <h1>DriveShare</h1>
-      <p>Your personal cloud storage, powered by Google Drive</p>
-    </div>
+<main>
+  <div id="loadingIndicator" class="loader" style="margin-top:40px;"></div>
+  
+  <div id="galleryView" class="grid hidden">
+    <!-- Rendered via JS -->
+  </div>
 
-    <div class="card">
-      <div class="card-title text-center mb-16">Welcome back</div>
+  <div id="selectionsView" class="grid hidden">
+    <!-- Rendered via JS -->
+  </div>
+</main>
 
-      <button class="btn btn-google btn-full btn-lg" id="google-login-btn" onclick="startGoogleLogin()">
-        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google" />
-        Continue with Google
-      </button>
+<nav>
+  <div class="tab active" id="tabLibrary" onclick="switchTab('library')">
+    <div class="tab-icon">🖼️</div>
+    Library
+  </div>
+  <div class="tab" id="tabSelections" onclick="switchTab('selections')">
+    <div class="tab-icon">❤️</div>
+    Selections
+  </div>
+</nav>
 
-      <div class="divider"></div>
-
-      <div style="font-size:0.78rem; color:var(--text-secondary); text-align:center; line-height:1.7;">
-        By signing in, you authorize <strong>DriveShare</strong> to create and manage a dedicated folder in your Google Drive.
-        Your files are stored securely in your own Google account.
-      </div>
-    </div>
-
-    <p class="text-center text-muted mt-16" style="font-size:0.8rem;">
-      Are you an admin? <a href="admin.html" style="color:var(--accent-blue);">Admin Panel →</a>
-    </p>
+<!-- Fullscreen Lightbox -->
+<div id="lightbox">
+  <div class="lb-header">
+    <button class="header-btn" onclick="closeLightbox()">Back</button>
+    <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()">❤️</button>
+  </div>
+  <div class="lb-content">
+    <img id="lbImage" src="" alt="Full Resolution">
   </div>
 </div>
 
-<!-- ═══════════════════════════════════════════
-     SETUP VIEW (shown after login, during folder setup)
-════════════════════════════════════════════ -->
-<div id="setup-view" class="login-center hidden">
-  <div class="login-box">
-    <div class="login-logo">
-      <div class="logo-icon">⚙️</div>
-      <h1>Setting Up</h1>
-      <p>Preparing your personal storage space…</p>
-    </div>
-    <div class="card">
-      <div id="setup-status" class="status-bar info">
-        <div class="spinner"></div>
-        <span>Initializing…</span>
-      </div>
-      <div class="progress-wrap mt-16">
-        <div class="progress-bar" id="setup-progress"></div>
-      </div>
-      <div id="setup-steps" style="margin-top:16px; font-size:0.82rem; color:var(--text-secondary); line-height:2;">
-        <div id="step-1">⬜ Authenticating with Google Drive…</div>
-        <div id="step-2">⬜ Creating your personal folder…</div>
-        <div id="step-3">⬜ Setting up access permissions…</div>
-        <div id="step-4">⬜ Syncing with server…</div>
-      </div>
-    </div>
-  </div>
-</div>
+<script>
+let allPhotos = [];
+let selectedIds = new Set();
+let currentView = 'library'; // 'library' or 'selections'
+let currentLightboxItem = null;
 
-<!-- ═══════════════════════════════════════════
-     DASHBOARD VIEW (shown after setup)
-════════════════════════════════════════════ -->
-<div id="dashboard-view" class="hidden">
-  <div class="container">
-    <nav class="nav">
-      <a class="nav-brand" href="#">
-        <div class="brand-icon">☁️</div>
-        DriveShare
-      </a>
-      <div class="nav-actions">
-        <div class="profile-row">
-          <img id="dash-avatar" src="" alt="Avatar" class="avatar" onerror="this.style.display='none'" />
-          <div>
-            <div class="profile-name" id="dash-name">—</div>
-            <div class="profile-email" id="dash-email">—</div>
-          </div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="logout()">Sign Out</button>
-      </div>
-    </nav>
+// Auth check
+async function checkAuth() {
+  const res = await fetch('/api/client/status');
+  if(!res.ok) return window.location.href = '/login';
+  const data = await res.json();
+  if(!data.loggedIn) return window.location.href = '/login';
+  
+  document.getElementById('headerTitle').innerText = data.name + ' Gallery';
+  loadData();
+}
 
-    <div class="page-header">
-      <h1>My Files</h1>
-      <p>Files shared with you by the admin appear below.</p>
-    </div>
+async function loadData() {
+  try {
+    const [galRes, selRes] = await Promise.all([
+      fetch('/api/client/gallery'),
+      fetch('/api/client/selections')
+    ]);
+    allPhotos = await galRes.json();
+    const sels = await selRes.json();
+    selectedIds = new Set(sels);
+    
+    document.getElementById('loadingIndicator').classList.add('hidden');
+    renderGrid();
+  } catch(err) {
+    console.error('Failed to load gallery', err);
+  }
+}
 
-    <!-- Folder Info -->
-    <div class="card mb-16" id="folder-card">
-      <div class="section-header">
-        <div>
-          <div class="card-title">📁 Your Drive Folder</div>
-          <div class="card-sub" id="folder-name-sub">—</div>
-        </div>
-        <a id="folder-link" href="#" target="_blank" class="btn btn-primary btn-sm">Open in Drive ↗</a>
-      </div>
-    </div>
+function renderGrid() {
+  const libContainer = document.getElementById('galleryView');
+  const selContainer = document.getElementById('selectionsView');
+  
+  libContainer.innerHTML = '';
+  selContainer.innerHTML = '';
 
-    <!-- Files -->
-    <div class="card">
-      <div class="section-header">
-        <div>
-          <div class="section-title">Shared Files</div>
-          <div class="section-sub" id="files-count">—</div>
-        </div>
-        <button class="btn btn-ghost btn-sm" onclick="loadFiles()">↻ Refresh</button>
-      </div>
+  // Group by folder if folderName exists (to mimic moments/albums)
+  let lastFolder = null;
 
-      <div id="files-container">
-        <div class="empty-state">
-          <div class="empty-icon">📂</div>
-          <h3>No files yet</h3>
-          <p>Files uploaded by the admin will appear here.</p>
+  allPhotos.forEach(photo => {
+    // Is selected?
+    const isSel = selectedIds.has(photo.id);
+
+    const html = `
+      <div class="grid-item">
+        <img src="${photo.thumbnailLink}" loading="lazy" onclick="openLightbox('${photo.id}')">
+        <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')">
+          ${isSel ? '❤️' : '♡'}
         </div>
       </div>
-    </div>
+    `;
 
-    <p class="text-center text-muted mt-24" style="font-size:0.78rem; padding-bottom:32px;">
-      DriveShare · Files are stored in your Google Drive account
-    </p>
-  </div>
-</div>
+    // Library view appending
+    if(photo.folderName && photo.folderName !== lastFolder) {
+      libContainer.innerHTML += `<div class="folder-title">${photo.folderName}</div>`;
+      lastFolder = photo.folderName;
+    }
+    libContainer.innerHTML += html;
 
-<script src="drive.js"></script>
+    // Selections view appending
+    if(isSel) {
+      selContainer.innerHTML += html;
+    }
+  });
+
+  if(selectedIds.size === 0 && currentView === 'selections') {
+    selContainer.innerHTML = '<div style="grid-column: 1/-1;text-align:center;padding:40px;color:gray;">No photos selected yet.</div>';
+  }
+}
+
+function switchTab(tab) {
+  currentView = tab;
+  document.getElementById('tabLibrary').classList.toggle('active', tab==='library');
+  document.getElementById('tabSelections').classList.toggle('active', tab==='selections');
+  
+  document.getElementById('galleryView').classList.toggle('hidden', tab!=='library');
+  document.getElementById('selectionsView').classList.toggle('hidden', tab!=='selections');
+  
+  renderGrid(); // Re-render to ensure selections view is updated
+}
+
+async function toggleSelect(e, fileId) {
+  if(e) e.stopPropagation(); // prevent opening lightbox
+  const isSelected = selectedIds.has(fileId);
+  const newSelected = !isSelected;
+  
+  // Optimistically update UI
+  if(newSelected) selectedIds.add(fileId);
+  else selectedIds.delete(fileId);
+  renderGrid();
+  
+  // Update Backend
+  await fetch('/api/client/selections', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({fileId: fileId, selected: newSelected})
+  });
+}
+
+function openLightbox(fileId) {
+  const photo = allPhotos.find(p => p.id === fileId);
+  if(!photo) return;
+  currentLightboxItem = photo;
+  
+  const lb = document.getElementById('lightbox');
+  const img = document.getElementById('lbImage');
+  const btn = document.getElementById('lbSelectBtn');
+  
+  // Try to use webContentLink for high res, or strip sizes from thumbnail
+  img.src = photo.thumbnailLink.replace(/=s\d+/, '=s2048');
+  
+  const isSel = selectedIds.has(fileId);
+  btn.style.opacity = isSel ? '1' : '0.5';
+  btn.innerText = isSel ? '❤️' : '🤍';
+  
+  lb.style.display = 'flex';
+}
+
+function closeLightbox() {
+  document.getElementById('lightbox').style.display = 'none';
+  currentLightboxItem = null;
+}
+
+function toggleLightboxHeart() {
+  if(!currentLightboxItem) return;
+  toggleSelect(null, currentLightboxItem.id);
+  
+  // Update Lightbox UI
+  const isSel = selectedIds.has(currentLightboxItem.id);
+  const btn = document.getElementById('lbSelectBtn');
+  btn.style.opacity = isSel ? '1' : '0.5';
+  btn.innerText = isSel ? '❤️' : '🤍';
+}
+
+async function logout() {
+  await fetch('/api/client/logout', {method:'POST'});
+  window.location.reload();
+}
+
+checkAuth();
+</script>
 </body>
 </html>

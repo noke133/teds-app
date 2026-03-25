@@ -214,6 +214,14 @@ app.get('/api/client/status', requireClient, async (req, res) => {
     res.json({ loggedIn: true, name: rows[0]?.name, isConnected: !!rows[0]?.isConnected });
 });
 
+app.get('/api/client/download-token', requireClient, async (req, res) => {
+    try {
+        const auth = await getClientAuthClient(req.session.clientId);
+        const tokenRes = await auth.getAccessToken(); // Refreshes if needed
+        res.json({ token: tokenRes.token });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 // Client initiates Google Auth
 app.get('/api/client/auth', requireClient, (req, res) => {
     const oauth2Client = getOAuth2Client();

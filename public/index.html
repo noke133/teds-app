@@ -4,6 +4,10 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=viewport-fit=cover, width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
   <title>Gallery</title>
+  
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+
   <style>
     /* iOS Photos App Inspired Styles */
     :root {
@@ -86,13 +90,29 @@
     @keyframes spin { to { transform: rotate(360deg); } }
     .hidden { display: none !important; }
     .folder-title { grid-column: 1 / -1; font-size: 15px; font-weight: 600; padding: 12px 16px 4px; background: var(--bg); position: sticky; top: 0; z-index: 10; }
+
+    /* Download Overlay */
+    #downloadProgress {
+      position: fixed; inset: 0; z-index: 300; background: rgba(0,0,0,0.8);
+      display: none; flex-direction: column; align-items: center; justify-content: center;
+      color: #fff; font-size: 1.2rem; text-align: center;
+    }
   </style>
 </head>
 <body>
 
+<div id="downloadProgress">
+  <div class="loader" style="width:40px;height:40px;margin-bottom:20px;"></div>
+  <div id="dlText">Preparing Download...</div>
+  <div style="font-size:0.8rem; color:#8E8E93; margin-top:10px;">Please do not close this tab</div>
+</div>
+
 <header>
   <h1 id="headerTitle">Library</h1>
-  <button class="header-btn" onclick="logout()">Log Out</button>
+  <div>
+    <button class="header-btn" onclick="downloadZip()" style="margin-right:12px; font-weight: 600;">⬇️ Zip</button>
+    <button class="header-btn" onclick="logout()">Log Out</button>
+  </div>
 </header>
 
 <main>
@@ -228,6 +248,56 @@ function toggleLightboxHeart() {
 }
 
 async function logout() { await fetch('/api/client/logout', {method:'POST'}); window.location.reload(); }
+
+// Client-Side Direct API ZIP Downloader
+async function downloadZip() {
+  const p = document.getElementById('downloadProgress');
+  const pText = document.getElementById('dlText');
+  p.style.display = 'flex';
+  
+  try {
+    pText.innerText = "Authenticating with Google...";
+    const tokenRes = await fetch('/api/client/download-token');
+    if(!tokenRes.ok) throw new Error("Failed to get download token");
+    const { token } = await tokenRes.json();
+    if(!token) throw new Error("No token returned");
+    
+    pText.innerText = "Initializing zip...";
+    const zip = new JSZip();
+    
+    // Download what they are currently looking at
+    let photosToDownload = currentView === 'selections' 
+        ? allPhotos.filter(ph => selectedIds.has(ph.id)) 
+        : allPhotos;
+        
+    if(photosToDownload.length === 0) {
+      p.style.display = 'none'; return alert("No photos to download!");
+    }
+
+    let count = 0;
+    for(const ph of photosToDownload) {
+      pText.innerText = `Downloading ${count + 1} of ${photosToDownload.length}...`;
+      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${ph.id}?alt=media`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+      });
+      if(!res.ok) throw new Error("Google Drive API returned an error");
+      const blob = await res.blob();
+      
+      // Ensure unique filenames
+      let filename = ph.name || \`photo_\${count}.jpg\`;
+      zip.file(filename, blob);
+      count++;
+    }
+    
+    pText.innerText = "Zipping files... (this may take a moment)";
+    const content = await zip.generateAsync({type:"blob"});
+    saveAs(content, document.getElementById('headerTitle').innerText + '.zip');
+    p.style.display = 'none';
+  } catch(err) {
+    p.style.display = 'none';
+    alert('Download failed: ' + err.message);
+  }
+}
 
 checkAuth();
 </script>

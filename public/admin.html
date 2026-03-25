@@ -51,6 +51,9 @@
       <button class="nav-item active" onclick="showMainDashboard()" id="navDashboard">
         <span class="icon"><i class="bi bi-grid-1x2"></i></span> Dashboard
       </button>
+      <button class="nav-item" onclick="showCreateClient()" id="navCreate">
+        <span class="icon"><i class="bi bi-person-plus-fill"></i></span> Create Client
+      </button>
       <button class="nav-item" style="color: var(--accent-red);" onclick="adminLogout()">
         <span class="icon"><i class="bi bi-box-arrow-right"></i></span> Log out
       </button>
@@ -67,7 +70,7 @@
         <input type="text" placeholder="Search clients or events...">
       </div>
       <div class="header-actions">
-        <button class="btn btn-primary" onclick="document.getElementById('newClientName').focus()">+ Create Client</button>
+        <button class="btn btn-primary" onclick="showCreateClient()">+ Create Client</button>
       </div>
     </header>
 
@@ -79,11 +82,21 @@
         <p class="page-sub">Track, manage, and optimize your client galleries.</p>
       </div>
 
-      <!-- Overview Stats / Create Client Card -->
+      <!-- Clients List -->
+      <h3 class="card-title mt-24" style="margin-bottom: 20px; font-size: 1.25rem;">Active Galleries</h3>
+      <div id="clientsList" class="grid-3"></div>
+    </div>
+
+    <!-- Content Area: Create Client -->
+    <div id="createClientView" class="content-scroll hidden">
+      <div class="page-header">
+        <div class="breadcrumbs">Dashboard > Create Client</div>
+        <h1 class="page-title">Create template</h1>
+        <p class="page-sub">Generate a secure login passcode framework for a new client event.</p>
+      </div>
+
       <div class="grid-3 mb-16">
         <div class="card" style="grid-column: span 1;">
-          <div class="card-title">Create template</div>
-          <div class="card-desc mb-16">Generate a secure login passcode framework for a new client event.</div>
           <form id="createClientForm">
             <div class="form-group">
               <input type="text" id="newClientName" class="form-input" placeholder="Event Name (e.g., John Wedding)" required>
@@ -92,10 +105,6 @@
           </form>
         </div>
       </div>
-
-      <!-- Clients List -->
-      <h3 class="card-title mt-24" style="margin-bottom: 20px; font-size: 1.25rem;">Active Galleries</h3>
-      <div id="clientsList" class="grid-3"></div>
     </div>
 
     <!-- Content Area: Folder Management (Hidden by default) -->
@@ -220,7 +229,7 @@ document.getElementById('createClientForm').onsubmit = async (e) => {
   });
   if(res.ok) {
     showToast('Client created! Share the link with them to connect their Drive.', 'success');
-    e.target.reset(); loadClients();
+    e.target.reset(); loadClients(); showMainDashboard();
   } else {
     const data = await res.json();
     showToast('Error: ' + (data.error || 'Server failed'), 'error');
@@ -229,7 +238,20 @@ document.getElementById('createClientForm').onsubmit = async (e) => {
 
 function showMainDashboard() {
   document.getElementById('folderSection').classList.add('hidden');
+  document.getElementById('createClientView').classList.add('hidden');
   document.getElementById('mainDashboard').classList.remove('hidden');
+  const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.add('active');
+  const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.remove('active');
+  activeClientId = null; activeFolderId = null;
+}
+
+function showCreateClient() {
+  document.getElementById('folderSection').classList.add('hidden');
+  document.getElementById('mainDashboard').classList.add('hidden');
+  document.getElementById('createClientView').classList.remove('hidden');
+  const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.remove('active');
+  const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.add('active');
+  document.getElementById('newClientName').focus();
   activeClientId = null; activeFolderId = null;
 }
 
@@ -237,7 +259,10 @@ function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
   if (!isConnected) { alert("The client must log in and connect their Google Drive before you can manage their folders."); return; }
   
   document.getElementById('mainDashboard').classList.add('hidden');
+  document.getElementById('createClientView').classList.add('hidden');
   document.getElementById('folderSection').classList.remove('hidden');
+  const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.remove('active');
+  const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.remove('active');
   
   document.getElementById('managingClientName').innerText = name;
   document.getElementById('managingPasscode').innerText = passcode;

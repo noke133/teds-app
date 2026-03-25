@@ -41,24 +41,18 @@
     <button class="btn btn-ghost" onclick="adminLogout()">Logout</button>
   </div>
 
-  <div id="googleConnectAlert" class="alert alert-warning hidden mt-24">
-    <strong>Google Drive Not Connected!</strong> You must connect your Google Drive so we can create client folders.
-    <a href="/api/admin/auth" class="btn btn-google btn-sm mt-8" style="display:inline-flex; width:auto; text-decoration:none;">Connect Google Drive</a>
-  </div>
-
-  <div id="mainDashboard" class="hidden">
-    <div class="grid-2 mt-24">
-      
+  <div id="mainDashboard" class="hidden mt-24">
+    <div class="grid-2">
       <!-- Create Client -->
       <div class="card">
         <h3 class="card-title">New Client</h3>
-        <p class="card-sub">Create a client gallery and Drive folder</p>
+        <p class="card-sub">Generate a secure login passcode for a new client.</p>
         <form id="createClientForm">
           <div class="form-group">
             <label class="form-label">Client / Event Name</label>
             <input type="text" id="newClientName" class="form-input" required>
           </div>
-          <button type="submit" class="btn btn-success mt-8">Create Client & Folder</button>
+          <button type="submit" class="btn btn-success mt-8">Create Client</button>
         </form>
       </div>
 
@@ -67,7 +61,6 @@
         <h3 class="card-title">Your Clients</h3>
         <div id="clientsList" class="mt-16" style="max-height: 400px; overflow-y:auto;"></div>
       </div>
-
     </div>
   </div>
 
@@ -83,7 +76,7 @@
         <div>
           <h4 class="mb-16">📁 Subfolders</h4>
           <form id="createSubfolderForm" class="flex gap-8 mb-16">
-            <input type="text" id="subfolderName" class="form-input" placeholder="Folder Name (e.g. Wedding)" required>
+            <input type="text" id="subfolderName" class="form-input" placeholder="Folder Name" required>
             <button type="submit" class="btn btn-primary">Create</button>
           </form>
           <div id="subfolderList" class="file-list"></div>
@@ -121,6 +114,7 @@ function showToast(msg, type='info') {
   setTimeout(() => t.remove(), 3000);
 }
 
+let activeClientId = null;
 let activeFolderId = null;
 
 // Auth Check
@@ -128,17 +122,8 @@ fetch('/api/admin/status').then(r=>r.json()).then(data => {
   if (data.loggedIn) {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('dashboardSection').classList.remove('hidden');
-    const urlParams = new URLSearchParams(window.location.search);
-    if(urlParams.get('google') === 'connected') {
-        showToast('Google Drive Connected!', 'success');
-        window.history.replaceState({}, document.title, '/admin.html');
-    }
-    if (!data.googleConnected) {
-      document.getElementById('googleConnectAlert').classList.remove('hidden');
-    } else {
-      document.getElementById('mainDashboard').classList.remove('hidden');
-      loadClients();
-    }
+    document.getElementById('mainDashboard').classList.remove('hidden');
+    loadClients();
   }
 });
 
@@ -147,19 +132,13 @@ document.getElementById('adminLoginForm').onsubmit = async (e) => {
   const res = await fetch('/api/admin/login', {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      username: e.target.adminUser.value,
-      password: e.target.adminPass.value
-    })
+    body: JSON.stringify({ username: e.target.adminUser.value, password: e.target.adminPass.value })
   });
   if(res.ok) location.reload();
   else showToast('Login Failed', 'error');
 };
 
-async function adminLogout() {
-  await fetch('/api/admin/logout', {method:'POST'});
-  location.reload();
-}
+async function adminLogout() { await fetch('/api/admin/logout', {method:'POST'}); location.reload(); }
 
 async function loadClients() {
   const res = await fetch('/api/clients');
@@ -168,14 +147,21 @@ async function loadClients() {
   cl.innerHTML = '';
   clients.forEach(c => {
     const link = window.location.origin + '/login?code=' + c.passcode;
+    const connectedBadge = c.isConnected ? 
+        '<span class="badge badge-green mt-8">Drive Connected</span>' : 
+        '<span class="badge badge-yellow mt-8">Waiting for Client</span>';
+    
     cl.innerHTML += `
       <div class="client-card">
         <div style="display:flex; justify-content:space-between; align-items:flex-start;">
           <div>
             <strong>${c.name}</strong><br>
-            <span class="badge badge-blue mt-8">Passcode: ${c.passcode}</span>
+            <span class="badge badge-blue mt-8">Code: ${c.passcode}</span>
+            ${connectedBadge}
           </div>
-          <button class="btn btn-sm btn-ghost" onclick="manageClient('${c.id}', '${c.name}', '${c.passcode}', '${c.drive_folder_id}')">Manage</button>
+          <button class="btn btn-sm btn-ghost" onclick="manageClient('${c.id}', '${c.name}', '${c.passcode}', '${c.drive_folder_id}', ${c.isConnected})">
+             ${c.isConnected ? 'Manage' : 'View Link'}
+          </button>
         </div>
         <div class="mt-8">
           <a href="${link}" target="_blank" class="client-link">${link}</a>
@@ -193,111 +179,89 @@ document.getElementById('createClientForm').onsubmit = async (e) => {
     body: JSON.stringify({name: e.target.newClientName.value})
   });
   if(res.ok) {
-    showToast('Client and folder created!', 'success');
+    showToast('Client created! Share the link with them to connect their Drive.', 'success');
     e.target.reset();
     loadClients();
-  } else {
-    showToast('Error creating client.', 'error');
-  }
+  } else showToast('Error creating client.', 'error');
 };
 
-// Managing a Client Folder
-function manageClient(id, name, passcode, drive_folder_id) {
+function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
+  if (!isConnected) {
+     alert("The client must log in and connect their Google Drive before you can manage their folders.");
+     return;
+  }
   document.getElementById('mainDashboard').classList.add('hidden');
   document.getElementById('folderSection').style.display = 'block';
-  
   document.getElementById('managingClientName').innerText = name;
   document.getElementById('managingPasscode').innerText = passcode;
-  
   const link = window.location.origin + '/login?code=' + passcode;
-  const linkEl = document.getElementById('managingLink');
-  linkEl.href = link;
-  linkEl.innerText = link;
+  document.getElementById('managingLink').href = link;
+  document.getElementById('managingLink').innerText = link;
 
+  activeClientId = clientId;
   activeFolderId = drive_folder_id;
-  loadSubfolders(drive_folder_id);
+  loadSubfolders(clientId, drive_folder_id);
 }
 
 function closeFolderView() {
   document.getElementById('folderSection').style.display = 'none';
   document.getElementById('mainDashboard').classList.remove('hidden');
-  activeFolderId = null;
+  activeClientId = null; activeFolderId = null;
 }
 
-// Subfolder management
-async function loadSubfolders(rootFolderId) {
-  const res = await fetch('/api/drive/list/' + rootFolderId);
+async function loadSubfolders(clientId, rootFolderId) {
+  const res = await fetch(`/api/drive/list/${clientId}/${rootFolderId}`);
   const files = await res.json();
-  
   const subfolders = files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+  
   const list = document.getElementById('subfolderList');
   const sel = document.getElementById('uploadTargetFolder');
   
   list.innerHTML = '';
   sel.innerHTML = `<option value="${rootFolderId}">Root Gallery</option>`;
-
   if(subfolders.length === 0) list.innerHTML = '<p class="text-muted text-center py-4">No subfolders yet.</p>';
   
   subfolders.forEach(f => {
     sel.innerHTML += `<option value="${f.id}">${f.name}</option>`;
-    list.innerHTML += `
-      <div class="file-item">
-        <div class="file-icon">📁</div>
-        <div class="file-info">
-          <div class="file-name">${f.name}</div>
-        </div>
-      </div>
-    `;
+    list.innerHTML += `<div class="file-item"><div class="file-icon">📁</div><div class="file-info"><div class="file-name">${f.name}</div></div></div>`;
   });
 }
 
 document.getElementById('createSubfolderForm').onsubmit = async (e) => {
   e.preventDefault();
-  const res = await fetch('/api/drive/folders/' + activeFolderId, {
+  const res = await fetch(`/api/drive/folders/${activeClientId}/${activeFolderId}`, {
     method: 'POST',
     headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({name: e.target.subfolderName.value})
   });
-  if(res.ok) {
-    showToast('Subfolder Created', 'success');
-    e.target.reset();
-    loadSubfolders(activeFolderId);
-  }
+  if(res.ok) { showToast('Subfolder Created', 'success'); e.target.reset(); loadSubfolders(activeClientId, activeFolderId); }
+  else showToast('Failed to create subfolder', 'error');
 };
 
-// Upload
-const fileInput = document.getElementById('fileInput');
-fileInput.addEventListener('change', async (e) => {
+document.getElementById('fileInput').addEventListener('change', async (e) => {
   if(!e.target.files.length) return;
   const folderToUpload = document.getElementById('uploadTargetFolder').value;
   const files = Array.from(e.target.files);
   
   document.getElementById('uploadProgressWrap').classList.remove('hidden');
-  const bar = document.getElementById('uploadProgressBar');
-  bar.style.width = '0%';
+  const bar = document.getElementById('uploadProgressBar'); bar.style.width = '0%';
 
   for (let i = 0; i < files.length; i++) {
      try {
-       const sessionRes = await fetch('/api/drive/upload-session/' + folderToUpload, {
-          method: 'POST',
-          headers: {'Content-Type': 'application/json'},
+       const sessionRes = await fetch(`/api/drive/upload-session/${activeClientId}/${folderToUpload}`, {
+          method: 'POST', headers: {'Content-Type': 'application/json'},
           body: JSON.stringify({ name: files[i].name, mimeType: files[i].type })
        });
        const { sessionUrl } = await sessionRes.json();
-       
        await fetch(sessionUrl, {
-          method: 'PUT',
-          headers: { 'Content-Length': files[i].size },
-          body: files[i]
+          method: 'PUT', headers: { 'Content-Length': files[i].size }, body: files[i]
        });
        bar.style.width = Math.round(((i + 1) / files.length) * 100) + '%';
-     } catch(err) {
-       showToast('Error uploading ' + files[i].name, 'error');
-     }
+     } catch(err) { showToast('Error uploading ' + files[i].name, 'error'); }
   }
   showToast('Uploads complete!', 'success');
   setTimeout(()=>document.getElementById('uploadProgressWrap').classList.add('hidden'), 2000);
-  fileInput.value = '';
+  document.getElementById('fileInput').value = '';
 });
 
 </script>

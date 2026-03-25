@@ -7,139 +7,85 @@
   <style>
     /* iOS Photos App Inspired Styles */
     :root {
-      --bg: #000;
-      --text: #fff;
-      --accent: #0A84FF; /* iOS Blue */
-      --nav-bg: rgba(25, 25, 25, 0.85); /* Translucent dark */
-      --border: rgba(255, 255, 255, 0.15);
-      --red: #FF453A;
+      --bg: #000; --text: #fff; --accent: #0A84FF;
+      --nav-bg: rgba(25, 25, 25, 0.85); --border: rgba(255, 255, 255, 0.15); --red: #FF453A;
     }
     body, html {
       margin: 0; padding: 0; width: 100%; height: 100%;
       background: var(--bg); color: var(--text);
       font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-      overscroll-behavior-y: none; /* Prevent pull-to-refresh bounce */
-      -webkit-font-smoothing: antialiased;
+      overscroll-behavior-y: none; -webkit-font-smoothing: antialiased;
     }
 
     /* Fixed Header */
     header {
       position: fixed; top: 0; left: 0; right: 0;
-      height: 44px; /* iOS standard */
-      padding-top: env(safe-area-inset-top); /* Handle Notch */
-      background: var(--nav-bg);
-      backdrop-filter: saturate(180%) blur(20px);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
+      height: 44px; padding-top: env(safe-area-inset-top);
+      background: var(--nav-bg); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
       display: flex; align-items: center; justify-content: space-between;
-      padding-left: 16px; padding-right: 16px;
-      z-index: 100;
-      border-bottom: 0.5px solid var(--border);
+      padding-left: 16px; padding-right: 16px; border-bottom: 0.5px solid var(--border); z-index: 100;
     }
     header h1 { font-size: 17px; font-weight: 600; margin: 0; }
-    .header-btn {
-      color: var(--accent); background: none; border: none; font-size: 17px;
-      padding: 0; cursor: pointer;
-    }
+    .header-btn { color: var(--accent); background: none; border: none; font-size: 17px; padding: 0; cursor: pointer; }
 
-    /* Main Content Area */
     main {
-      padding-top: calc(44px + env(safe-area-inset-top));
-      padding-bottom: calc(50px + env(safe-area-inset-bottom));
-      height: 100vh; box-sizing: border-box;
-      overflow-y: scroll;
-      -webkit-overflow-scrolling: touch; /* Smooth iOS scroll */
+      padding-top: calc(44px + env(safe-area-inset-top)); padding-bottom: calc(50px + env(safe-area-inset-bottom));
+      height: 100vh; box-sizing: border-box; overflow-y: scroll; -webkit-overflow-scrolling: touch;
     }
 
+    /* Setup Google Drive Flow */
+    .setup-container {
+      display: flex; flex-direction: column; align-items: center; justify-content: center;
+      height: 100%; text-align: center; padding: 30px;
+    }
+    .setup-container h2 { font-size: 1.5rem; margin-bottom: 10px; }
+    .setup-container p { color: #8E8E93; margin-bottom: 30px; font-size: 0.95rem; }
+    .btn-google {
+      display: inline-flex; align-items: center; justify-content: center; gap: 8px;
+      background: #fff; color: #000; text-decoration: none; padding: 14px 24px;
+      border-radius: 12px; font-weight: 600; font-size: 1.1rem;
+    }
+    
     /* Image Grid (Photos style) */
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr); /* 3 columns like iOS Photos */
-      gap: 2px; /* Super tight gap */
-    }
-    .grid-item {
-      position: relative;
-      aspect-ratio: 1 / 1; /* Square thumbnails */
-      background: #222; /* Placeholder */
-      overflow: hidden;
-    }
-    .grid-item img {
-      width: 100%; height: 100%; object-fit: cover;
-      display: block;
-    }
+    .grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 2px; }
+    .grid-item { position: relative; aspect-ratio: 1 / 1; background: #222; overflow: hidden; }
+    .grid-item img { width: 100%; height: 100%; object-fit: cover; display: block; }
     
     /* Selection Heart Overlay */
     .heart-btn {
-      position: absolute;
-      bottom: 4px; right: 4px;
-      width: 28px; height: 28px;
-      background: rgba(0,0,0,0.4);
-      border-radius: 50%;
+      position: absolute; bottom: 4px; right: 4px; width: 28px; height: 28px;
+      background: rgba(0,0,0,0.4); border-radius: 50%;
       display: flex; align-items: center; justify-content: center;
-      color: rgba(255,255,255,0.7);
-      font-size: 16px;
-      border: 1px solid rgba(255,255,255,0.2);
-      cursor: pointer; backdrop-filter: blur(4px);
+      color: rgba(255,255,255,0.7); font-size: 16px;
+      border: 1px solid rgba(255,255,255,0.2); cursor: pointer; backdrop-filter: blur(4px);
     }
-    .heart-btn.selected {
-      color: var(--red);
-      background: rgba(255,255,255,0.9);
-      border: 1px solid #fff;
-    }
+    .heart-btn.selected { color: var(--red); background: rgba(255,255,255,0.9); border: 1px solid #fff; }
 
     /* Bottom Tab Navigation */
     nav {
-      position: fixed; bottom: 0; left: 0; right: 0;
-      height: 50px;
-      padding-bottom: env(safe-area-inset-bottom);
-      background: var(--nav-bg);
-      backdrop-filter: saturate(180%) blur(20px);
-      -webkit-backdrop-filter: saturate(180%) blur(20px);
-      display: flex; align-items: center; justify-content: space-evenly;
-      border-top: 0.5px solid var(--border);
-      z-index: 100;
+      position: fixed; bottom: 0; left: 0; right: 0; height: 50px; padding-bottom: env(safe-area-inset-bottom);
+      background: var(--nav-bg); backdrop-filter: saturate(180%) blur(20px); -webkit-backdrop-filter: saturate(180%) blur(20px);
+      display: flex; align-items: center; justify-content: space-evenly; border-top: 0.5px solid var(--border); z-index: 100;
     }
     .tab {
       display: flex; flex-direction: column; align-items: center; justify-content: center;
-      width: 50%; height: 100%; color: #8E8E93;
-      font-size: 10px; font-weight: 500; text-decoration: none;
-      cursor: pointer;
+      width: 50%; height: 100%; color: #8E8E93; font-size: 10px; font-weight: 500; text-decoration: none; cursor: pointer;
     }
     .tab.active { color: var(--accent); }
     .tab-icon { font-size: 20px; margin-bottom: 2px; }
 
     /* Lightbox (Full Screen View) */
-    #lightbox {
-      position: fixed; inset: 0; z-index: 200;
-      background: #000;
-      display: none; flex-direction: column;
-    }
+    #lightbox { position: fixed; inset: 0; z-index: 200; background: #000; display: none; flex-direction: column; }
     .lb-header {
-      height: 44px; padding-top: env(safe-area-inset-top);
-      display: flex; justify-content: space-between; align-items: center;
-      padding-left: 16px; padding-right: 16px;
-      background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+      height: 44px; padding-top: env(safe-area-inset-top); display: flex; justify-content: space-between; align-items: center;
+      padding-left: 16px; padding-right: 16px; background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
     }
-    .lb-content {
-      flex: 1; display: flex; align-items: center; justify-content: center;
-      overflow: hidden;
-    }
-    .lb-content img {
-      max-width: 100%; max-height: 100%; object-fit: contain;
-    }
-    /* Simple CSS Spinner */
+    .lb-content { flex: 1; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+    .lb-content img { max-width: 100%; max-height: 100%; object-fit: contain; }
     .loader { margin: auto; border: 3px solid rgba(255,255,255,0.1); border-top-color: #fff; width: 24px; height: 24px; border-radius: 50%; animation: spin 1s linear infinite; }
     @keyframes spin { to { transform: rotate(360deg); } }
     .hidden { display: none !important; }
-
-    /* Section Headers */
-    .folder-title {
-      grid-column: 1 / -1;
-      font-size: 15px; font-weight: 600;
-      padding: 12px 16px 4px;
-      background: var(--bg);
-      position: sticky; top: 0; z-index: 10;
-    }
-
+    .folder-title { grid-column: 1 / -1; font-size: 15px; font-weight: 600; padding: 12px 16px 4px; background: var(--bg); position: sticky; top: 0; z-index: 10; }
   </style>
 </head>
 <body>
@@ -152,44 +98,33 @@
 <main>
   <div id="loadingIndicator" class="loader" style="margin-top:40px;"></div>
   
-  <div id="galleryView" class="grid hidden">
-    <!-- Rendered via JS -->
+  <div id="googleSetupView" class="setup-container hidden">
+    <h2>Connect Your Drive</h2>
+    <p>To view and store your photos, please connect your Google Drive account. Your photographer needs this to deliver your images.</p>
+    <a href="/api/client/auth" class="btn-google">☁️ Connect Google Drive</a>
   </div>
 
-  <div id="selectionsView" class="grid hidden">
-    <!-- Rendered via JS -->
-  </div>
+  <div id="galleryView" class="grid hidden"></div>
+  <div id="selectionsView" class="grid hidden"></div>
 </main>
 
-<nav>
-  <div class="tab active" id="tabLibrary" onclick="switchTab('library')">
-    <div class="tab-icon">🖼️</div>
-    Library
-  </div>
-  <div class="tab" id="tabSelections" onclick="switchTab('selections')">
-    <div class="tab-icon">❤️</div>
-    Selections
-  </div>
+<nav id="bottomNav" class="hidden">
+  <div class="tab active" id="tabLibrary" onclick="switchTab('library')"><div class="tab-icon">🖼️</div>Library</div>
+  <div class="tab" id="tabSelections" onclick="switchTab('selections')"><div class="tab-icon">❤️</div>Selections</div>
 </nav>
 
-<!-- Fullscreen Lightbox -->
 <div id="lightbox">
   <div class="lb-header">
     <button class="header-btn" onclick="closeLightbox()">Back</button>
     <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()">❤️</button>
   </div>
-  <div class="lb-content">
-    <img id="lbImage" src="" alt="Full Resolution">
-  </div>
+  <div class="lb-content"><img id="lbImage" src="" alt="Full Resolution"></div>
 </div>
 
 <script>
-let allPhotos = [];
-let selectedIds = new Set();
-let currentView = 'library'; // 'library' or 'selections'
-let currentLightboxItem = null;
+let allPhotos = []; let selectedIds = new Set();
+let currentView = 'library'; let currentLightboxItem = null;
 
-// Auth check
 async function checkAuth() {
   const res = await fetch('/api/client/status');
   if(!res.ok) return window.location.href = '/login';
@@ -197,60 +132,50 @@ async function checkAuth() {
   if(!data.loggedIn) return window.location.href = '/login';
   
   document.getElementById('headerTitle').innerText = data.name + ' Gallery';
-  loadData();
+  document.getElementById('loadingIndicator').classList.add('hidden');
+
+  if (!data.isConnected) {
+    document.getElementById('googleSetupView').classList.remove('hidden');
+  } else {
+    document.getElementById('bottomNav').classList.remove('hidden');
+    document.getElementById('galleryView').classList.remove('hidden');
+    loadData();
+  }
 }
 
 async function loadData() {
+  document.getElementById('loadingIndicator').classList.remove('hidden');
   try {
-    const [galRes, selRes] = await Promise.all([
-      fetch('/api/client/gallery'),
-      fetch('/api/client/selections')
-    ]);
+    const [galRes, selRes] = await Promise.all([fetch('/api/client/gallery'), fetch('/api/client/selections')]);
     allPhotos = await galRes.json();
     const sels = await selRes.json();
     selectedIds = new Set(sels);
     
     document.getElementById('loadingIndicator').classList.add('hidden');
     renderGrid();
-  } catch(err) {
-    console.error('Failed to load gallery', err);
-  }
+  } catch(err) { console.error('Failed to load gallery', err); }
 }
 
 function renderGrid() {
   const libContainer = document.getElementById('galleryView');
   const selContainer = document.getElementById('selectionsView');
-  
-  libContainer.innerHTML = '';
-  selContainer.innerHTML = '';
+  libContainer.innerHTML = ''; selContainer.innerHTML = '';
 
-  // Group by folder if folderName exists (to mimic moments/albums)
   let lastFolder = null;
-
   allPhotos.forEach(photo => {
-    // Is selected?
     const isSel = selectedIds.has(photo.id);
-
     const html = `
       <div class="grid-item">
         <img src="${photo.thumbnailLink}" loading="lazy" onclick="openLightbox('${photo.id}')">
-        <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')">
-          ${isSel ? '❤️' : '♡'}
-        </div>
+        <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')">${isSel?'❤️':'♡'}</div>
       </div>
     `;
-
-    // Library view appending
     if(photo.folderName && photo.folderName !== lastFolder) {
       libContainer.innerHTML += `<div class="folder-title">${photo.folderName}</div>`;
       lastFolder = photo.folderName;
     }
     libContainer.innerHTML += html;
-
-    // Selections view appending
-    if(isSel) {
-      selContainer.innerHTML += html;
-    }
+    if(isSel) selContainer.innerHTML += html;
   });
 
   if(selectedIds.size === 0 && currentView === 'selections') {
@@ -262,27 +187,18 @@ function switchTab(tab) {
   currentView = tab;
   document.getElementById('tabLibrary').classList.toggle('active', tab==='library');
   document.getElementById('tabSelections').classList.toggle('active', tab==='selections');
-  
   document.getElementById('galleryView').classList.toggle('hidden', tab!=='library');
   document.getElementById('selectionsView').classList.toggle('hidden', tab!=='selections');
-  
-  renderGrid(); // Re-render to ensure selections view is updated
+  renderGrid(); 
 }
 
 async function toggleSelect(e, fileId) {
-  if(e) e.stopPropagation(); // prevent opening lightbox
-  const isSelected = selectedIds.has(fileId);
-  const newSelected = !isSelected;
-  
-  // Optimistically update UI
-  if(newSelected) selectedIds.add(fileId);
-  else selectedIds.delete(fileId);
+  if(e) e.stopPropagation();
+  const isSelected = selectedIds.has(fileId); const newSelected = !isSelected;
+  if(newSelected) selectedIds.add(fileId); else selectedIds.delete(fileId);
   renderGrid();
-  
-  // Update Backend
   await fetch('/api/client/selections', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({fileId: fileId, selected: newSelected})
   });
 }
@@ -291,41 +207,27 @@ function openLightbox(fileId) {
   const photo = allPhotos.find(p => p.id === fileId);
   if(!photo) return;
   currentLightboxItem = photo;
-  
   const lb = document.getElementById('lightbox');
   const img = document.getElementById('lbImage');
   const btn = document.getElementById('lbSelectBtn');
   
-  // Try to use webContentLink for high res, or strip sizes from thumbnail
   img.src = photo.thumbnailLink.replace(/=s\d+/, '=s2048');
-  
   const isSel = selectedIds.has(fileId);
-  btn.style.opacity = isSel ? '1' : '0.5';
-  btn.innerText = isSel ? '❤️' : '🤍';
-  
+  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerText = isSel ? '❤️' : '🤍';
   lb.style.display = 'flex';
 }
 
-function closeLightbox() {
-  document.getElementById('lightbox').style.display = 'none';
-  currentLightboxItem = null;
-}
+function closeLightbox() { document.getElementById('lightbox').style.display = 'none'; currentLightboxItem = null; }
 
 function toggleLightboxHeart() {
   if(!currentLightboxItem) return;
   toggleSelect(null, currentLightboxItem.id);
-  
-  // Update Lightbox UI
   const isSel = selectedIds.has(currentLightboxItem.id);
   const btn = document.getElementById('lbSelectBtn');
-  btn.style.opacity = isSel ? '1' : '0.5';
-  btn.innerText = isSel ? '❤️' : '🤍';
+  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerText = isSel ? '❤️' : '🤍';
 }
 
-async function logout() {
-  await fetch('/api/client/logout', {method:'POST'});
-  window.location.reload();
-}
+async function logout() { await fetch('/api/client/logout', {method:'POST'}); window.location.reload(); }
 
 checkAuth();
 </script>

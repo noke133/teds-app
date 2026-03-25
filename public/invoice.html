@@ -345,7 +345,7 @@
                         <td id="shipping">0.00</td>
                     </tr>
                     <tr class="balance-due">
-                        <td>Balance Due <span style="font-weight:normal; margin-left:8px;">$</span></td>
+                        <td>Balance Due <span style="font-weight:normal; margin-left:8px;">₹</span></td>
                         <td id="total">0.00</td>
                     </tr>
                 </table>
@@ -418,8 +418,8 @@ async function loadInvoice() {
                 <tr>
                     <td>${item.description}</td>
                     <td class="col-qty">${item.quantity}</td>
-                    <td class="cell-currency"><span class="currency-symbol">$</span>${parseFloat(item.unit_price).toFixed(2)}</td>
-                    <td class="cell-currency"><span class="currency-symbol">$</span>${rowTotal.toFixed(2)}</td>
+                    <td class="cell-currency"><span class="currency-symbol">₹</span>${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td class="cell-currency"><span class="currency-symbol">₹</span>${rowTotal.toFixed(2)}</td>
                 </tr>
             `;
         });

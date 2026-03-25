@@ -39,7 +39,7 @@ async function loadInvoices() {
                     <td style="padding: 12px; font-weight:600; color: var(--text-base);">${inv.invoice_number}</td>
                     <td style="padding: 12px; font-weight:500;">${inv.client_name}</td>
                     <td style="padding: 12px; color: var(--text-muted);">${d}</td>
-                    <td style="padding: 12px; font-weight:700;">$${inv.total}</td>
+                    <td style="padding: 12px; font-weight:700;">₹${inv.total}</td>
                     <td style="padding: 12px;">
                        <select onchange="updateInvoiceStatus(${inv.id}, this.value)" style="padding:4px 8px; border-radius:4px; font-weight:600; background:${statusColor}22; color:${statusColor}; border:none;">
                           <option value="Unpaid" ${inv.status.toLowerCase()==='unpaid'?'selected':''}>Unpaid</option>
@@ -283,7 +283,7 @@ async function deleteInvoice(id) {
 
 function shareWhatsApp(token, clientName, totalAmount) {
     const link = window.location.origin + '/invoice?token=' + token;
-    const msg = `Hello ${clientName},\n\nYour invoice for $${totalAmount} has been generated.\n\nYou can view it here:\n${link}\n\nThank you for choosing our services!`;
+    const msg = `Hello ${clientName},\n\nYour invoice for ₹${totalAmount} has been generated.\n\nYou can view it here:\n${link}\n\nThank you for choosing our services!`;
     const encoded = encodeURIComponent(msg);
     window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }

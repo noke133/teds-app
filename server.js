@@ -383,7 +383,10 @@ app.delete('/api/admin/invoices/:id', requireAdmin, async (req, res) => {
 // ═══════════════════════════════════════════════════════════════
 app.get('/api/invoice/:token', async (req, res) => {
     try {
-        const [invoices] = await pool.execute('SELECT * FROM invoices WHERE public_token = ?', [req.params.token]);
+        const rawToken = req.params.token || '';
+        const cleanToken = rawToken.trim().substring(0, 32);
+        
+        const [invoices] = await pool.execute('SELECT * FROM invoices WHERE public_token = ?', [cleanToken]);
         if (invoices.length === 0) return res.status(404).json({ error: 'Invoice not found.' });
         
         const invoice = invoices[0];

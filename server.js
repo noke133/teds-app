@@ -148,7 +148,7 @@ app.get('/api/superadmin/admins', requireSuperAdmin, async (req, res) => {
 app.post('/api/superadmin/admins', requireSuperAdmin, async (req, res) => {
     const { username, password, email } = req.body;
     try {
-        await pool.execute('INSERT INTO admins (username, password, email) VALUES (?, ?, ?)', [username, password, email]);
+        await pool.execute('INSERT INTO admins (username, password, email) VALUES (?, ?, ?)', [username, password, email || null]);
         res.json({ success: true });
     } catch (err) {
         res.status(500).json({ error: err.message });

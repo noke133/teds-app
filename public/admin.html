@@ -404,7 +404,8 @@ function renderAdminGallery() {
    photosToShow.forEach(p => {
        const isClientSelected = adminGallerySelections.has(p.id);
        const isAdminSelected = adminAdminSelections.has(p.id);
-       const thumb = p.thumbnailLink.replace(/=s\d+/, '=s400');
+       const thumbRaw = p.thumbnailLink;
+       const thumb = thumbRaw ? thumbRaw.replace(/=s\d+/, '=s400') : p.webContentLink || '';
        grid.innerHTML += `
          <div style="position:relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; border: ${isAdminSelected ? '4px solid var(--accent-primary)' : '1px solid var(--border)'}; cursor: pointer; transition: transform 0.1s;" onclick="toggleAdminSelection('${p.id}')">
             <img src="${thumb}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">

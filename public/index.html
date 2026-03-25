@@ -218,7 +218,8 @@ function renderGrid() {
         let scrollHTML = '';
         folders.forEach(f => {
            const folderPhotos = allPhotos.filter(p => p.folderName === f);
-           const cover = folderPhotos[0]?.thumbnailLink.replace(/=s\d+/, '=s400'); // 400px album cover
+           const thumbRaw = folderPhotos[0]?.thumbnailLink;
+           const cover = thumbRaw ? thumbRaw.replace(/=s\d+/, '=s400') : folderPhotos[0]?.webContentLink || ''; // 400px album cover
            const count = folderPhotos.length;
            scrollHTML += `
              <div class="album-card" onclick="document.getElementById('folder_${f}').scrollIntoView({behavior:'smooth'})">
@@ -236,7 +237,8 @@ function renderGrid() {
   let lastFolder = null;
   allPhotos.forEach(photo => {
     const isSel = selectedIds.has(photo.id);
-    const hqThumb = photo.thumbnailLink.replace(/=s\d+/, '=s600'); // Increase physical DPI quality to 600px width
+    const thumbRaw = photo.thumbnailLink;
+    const hqThumb = thumbRaw ? thumbRaw.replace(/=s\d+/, '=s600') : photo.webContentLink || ''; // Increase physical DPI quality to 600px width
     const html = `
       <div class="grid-item">
         <img src="${hqThumb}" loading="lazy" onclick="openLightbox('${photo.id}')">

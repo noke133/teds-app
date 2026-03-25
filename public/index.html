@@ -158,7 +158,10 @@
 <div id="lightbox">
   <div class="lb-header">
     <button class="header-btn" onclick="closeLightbox()">Back</button>
-    <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()"><i class="bi bi-heart-fill"></i></button>
+    <div>
+      <button class="header-btn" title="Download Image" onclick="downloadSingleImage()" style="margin-right:16px;"><i class="bi bi-download"></i></button>
+      <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()"><i class="bi bi-heart-fill"></i></button>
+    </div>
   </div>
   <div class="lb-content"><img id="lbImage" src="" alt="Full Resolution"></div>
 </div>
@@ -352,6 +355,36 @@ async function downloadZip() {
     pText.innerText = "Zipping files... (this may take a moment)";
     const content = await zip.generateAsync({type:"blob"});
     saveAs(content, document.getElementById('headerTitle').innerText + '.zip');
+    p.style.display = 'none';
+  } catch(err) {
+    p.style.display = 'none';
+    alert('Download failed: ' + err.message);
+  }
+}
+
+// Client-Side Direct API Single Downloader
+async function downloadSingleImage() {
+  if (!currentLightboxItem) return;
+  const p = document.getElementById('downloadProgress');
+  const pText = document.getElementById('dlText');
+  p.style.display = 'flex';
+  
+  try {
+    pText.innerText = "Authenticating with Google...";
+    const tokenRes = await fetch('/api/client/download-token');
+    if(!tokenRes.ok) throw new Error("Failed to get download token");
+    const { token } = await tokenRes.json();
+    if(!token) throw new Error("No token returned");
+    
+    pText.innerText = "Downloading High-Res Image...";
+    const res = await fetch(`https://www.googleapis.com/drive/v3/files/${currentLightboxItem.id}?alt=media`, {
+        headers: { 'Authorization': 'Bearer ' + token }
+    });
+    if(!res.ok) throw new Error("Google Drive API limit reached or file not accessible");
+    const blob = await res.blob();
+    const filename = currentLightboxItem.name || `photo_${currentLightboxItem.id}.jpg`;
+    
+    saveAs(blob, filename);
     p.style.display = 'none';
   } catch(err) {
     p.style.display = 'none';

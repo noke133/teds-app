@@ -1,11 +1,10 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <title>Photographer Dashboard | SaaS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="/style.css?v=3">
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
   <style>
     /* Admin specific layout tweaks */
     .client-card { 
@@ -153,10 +152,27 @@
            </div>
         </div>
       </div>
+
+      <!-- NEW GALLERY SECTION -->
+      <div class="card mt-24">
+         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
+            <div class="card-title" style="margin: 0;"><i class="bi bi-images"></i> Client Gallery & Selections</div>
+            <div style="display:flex; gap: 8px;">
+               <button class="btn btn-ghost" onclick="adminDownloadZip()"><i class="bi bi-file-earmark-zip"></i> ZIP</button>
+               <button class="btn btn-danger" onclick="adminDeleteSelected()"><i class="bi bi-trash"></i> Delete</button>
+               <button class="btn btn-primary" onclick="adminSelectAll()"><i class="bi bi-check-all"></i> Select All</button>
+            </div>
+         </div>
+         <div id="adminGalleryLoading" class="text-muted hidden" style="text-align:center; padding: 20px;">
+           <i class="bi bi-arrow-repeat" style="display:inline-block; animation: spin 1s linear infinite;"></i> Loading gallery...
+         </div>
+         <div id="adminGalleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;"></div>
+      </div>
     </div>
     
   </main>
 </div>
+<style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
 
 <div id="toast-container"></div>
 
@@ -272,6 +288,7 @@ function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
 
   activeClientId = clientId; activeFolderId = drive_folder_id;
   loadSubfolders(clientId, drive_folder_id);
+  loadAdminGallery(clientId);
 }
 
 async function loadSubfolders(clientId, rootFolderId) {
@@ -326,7 +343,149 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   showToast('Uploads complete!', 'success');
   setTimeout(()=>document.getElementById('uploadProgressWrap').classList.add('hidden'), 2000);
   document.getElementById('fileInput').value = '';
+  // Reload gallery after upload
+  loadAdminGallery(activeClientId);
 });
+
+// --- ADMIN GALLERY FUNCTIONS ---
+let adminGalleryPhotos = [];
+let adminGallerySelections = new Set();
+let adminAdminSelections = new Set();
+
+async function loadAdminGallery(clientId) {
+   document.getElementById('adminGalleryGrid').innerHTML = '';
+   document.getElementById('adminGalleryLoading').classList.remove('hidden');
+   adminAdminSelections.clear();
+   
+   try {
+      const [galRes, selRes] = await Promise.all([
+          fetch('/api/admin/gallery/' + clientId),
+          fetch('/api/admin/selections/' + clientId)
+      ]);
+      adminGalleryPhotos = await galRes.json();
+      const sels = await selRes.json();
+      adminGallerySelections = new Set(sels);
+      
+      document.getElementById('adminGalleryLoading').classList.add('hidden');
+      renderAdminGallery();
+   } catch(err) {
+      document.getElementById('adminGalleryLoading').classList.add('hidden');
+      showToast('Failed to load gallery', 'error');
+   }
+}
+
+function renderAdminGallery() {
+   const grid = document.getElementById('adminGalleryGrid');
+   grid.innerHTML = '';
+   if(adminGalleryPhotos.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color: var(--text-muted);">No photos found in client gallery.</div>';
+      return;
+   }
+   
+   adminGalleryPhotos.forEach(p => {
+       const isClientSelected = adminGallerySelections.has(p.id);
+       const isAdminSelected = adminAdminSelections.has(p.id);
+       const thumb = p.thumbnailLink.replace(/=s\d+/, '=s400');
+       grid.innerHTML += `
+         <div style="position:relative; width: 100%; aspect-ratio: 1/1; border-radius: 8px; overflow: hidden; border: ${isAdminSelected ? '4px solid var(--accent-primary)' : '1px solid var(--border)'}; cursor: pointer; transition: transform 0.1s;" onclick="toggleAdminSelection('${p.id}')">
+            <img src="${thumb}" loading="lazy" style="width: 100%; height: 100%; object-fit: cover;">
+            ${isClientSelected ? '<div title="Client Selected" style="position:absolute; top:8px; right:8px; background: rgba(255,255,255,0.9); border-radius: 50%; width: 26px; height: 26px; display:flex; align-items:center; justify-content:center; color: var(--accent-red); box-shadow: 0 2px 5px rgba(0,0,0,0.3);"><i class="bi bi-heart-fill" style="font-size:0.9rem;"></i></div>' : ''}
+            <div style="position:absolute; top:8px; left:8px; background: rgba(255,255,255,0.9); border-radius: 4px; padding: 2px;">
+               <input type="checkbox" ${isAdminSelected ? 'checked' : ''} onclick="event.stopPropagation(); toggleAdminSelection('${p.id}')" style="width:18px; height:18px; cursor:pointer; display:block;">
+            </div>
+            <button title="Download Individual Image" class="btn btn-primary" style="position:absolute; bottom:8px; right:8px; padding: 6px 12px; font-size: 0.9rem; border-radius: 6px;" onclick="event.stopPropagation(); adminDownloadSingle('${p.id}', '${p.name}')"><i class="bi bi-download"></i></button>
+            <div style="position:absolute; bottom:0; left:0; width:100%; background:rgba(0,0,0,0.5); padding:4px 8px; color:#fff; font-size:0.7rem; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; pointer-events:none;">
+               ${p.folderName ? p.folderName + ' / ' : ''}${p.name}
+            </div>
+         </div>
+       `;
+   });
+}
+
+function toggleAdminSelection(id) {
+   if(adminAdminSelections.has(id)) adminAdminSelections.delete(id);
+   else adminAdminSelections.add(id);
+   renderAdminGallery();
+}
+
+function adminSelectAll() {
+   if(adminAdminSelections.size === adminGalleryPhotos.length) {
+      adminAdminSelections.clear();
+   } else {
+      adminGalleryPhotos.forEach(p => adminAdminSelections.add(p.id));
+   }
+   renderAdminGallery();
+}
+
+async function adminDownloadSingle(fileId, filename) {
+   showToast('Starting download...', 'info');
+   try {
+       const tokenRes = await fetch('/api/admin/download-token/' + activeClientId);
+       const { token } = await tokenRes.json();
+       const res = await fetch(`https://www.googleapis.com/drive/v3/files/${fileId}?alt=media`, {
+          headers: { 'Authorization': 'Bearer ' + token }
+       });
+       if(!res.ok) throw new Error("API limit reached or unauthorized");
+       const blob = await res.blob();
+       saveAs(blob, filename || `photo_${fileId}.jpg`);
+       showToast('Download complete', 'success');
+   } catch(e) { showToast('Download failed: ' + e.message, 'error'); }
+}
+
+async function adminDownloadZip() {
+   if(adminAdminSelections.size === 0) return showToast('Please select at least one photo to create a ZIP.', 'error');
+   
+   showToast('Preparing ZIP...', 'info');
+   try {
+       const tokenRes = await fetch('/api/admin/download-token/' + activeClientId);
+       const { token } = await tokenRes.json();
+       
+       const zip = new JSZip();
+       const photosToDownload = adminGalleryPhotos.filter(p => adminAdminSelections.has(p.id));
+       const BATCH = 5; let count = 0;
+       
+       for(let i=0; i<photosToDownload.length; i+=BATCH) {
+           const batch = photosToDownload.slice(i, i+BATCH);
+           await Promise.all(batch.map(async (ph) => {
+               const res = await fetch(`https://www.googleapis.com/drive/v3/files/${ph.id}?alt=media`, {
+                  headers: { 'Authorization': 'Bearer ' + token }
+               });
+               if(!res.ok) throw new Error("API limit hit");
+               const blob = await res.blob();
+               let fName = ph.folderName ? `${ph.folderName}/${ph.name}` : ph.name;
+               zip.file(fName || `photo_${ph.id}.jpg`, blob);
+           }));
+           count += batch.length;
+           showToast(`Added ${count}/${photosToDownload.length} to ZIP...`, 'info');
+       }
+       
+       showToast('Zipping files... Please wait.', 'info');
+       const content = await zip.generateAsync({type:"blob"});
+       saveAs(content, document.getElementById('managingClientName').innerText + '_Selected_Photos.zip');
+       showToast('ZIP downloaded successfully', 'success');
+   } catch(err) {
+       showToast('Zip failed: ' + err.message, 'error');
+   }
+}
+
+async function adminDeleteSelected() {
+   if(adminAdminSelections.size === 0) return showToast('No photos selected to delete.', 'error');
+   if(!confirm(`Are you sure you want to delete ${adminAdminSelections.size} photos permanently from Google Drive? This cannot be undone.`)) return;
+   
+   const ids = Array.from(adminAdminSelections);
+   let delCount = 0;
+   
+   showToast(`Deleting 0/${ids.length}...`, 'info');
+   for(const id of ids) {
+       try {
+           await fetch(`/api/drive/files/${activeClientId}/${id}`, { method: 'DELETE' });
+           delCount++;
+           showToast(`Deleting ${delCount}/${ids.length}...`, 'info');
+       } catch(e) { console.error('Delete failed for', id); }
+   }
+   showToast(`Deleted ${delCount} photos successfully.`, 'success');
+   await loadAdminGallery(activeClientId);
+}
 </script>
 </body>
 </html>

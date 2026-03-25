@@ -190,6 +190,70 @@ app.post('/api/drive/upload-session/:clientId/:folderId', requireAdmin, async (r
     }
 });
 
+// Admin fetching full gallery (similar to client gallery but for admin view)
+app.get('/api/admin/gallery/:clientId', requireAdmin, async (req, res) => {
+    try {
+        const [clientData] = await pool.execute('SELECT drive_folder_id FROM clients WHERE id = ?', [req.params.clientId]);
+        const drive_folder_id = clientData[0].drive_folder_id;
+        if(!drive_folder_id) return res.json([]);
+
+        const auth = await getClientAuthClient(req.params.clientId);
+        const drive = google.drive({ version: 'v3', auth });
+        
+        const response = await drive.files.list({
+            q: `'${drive_folder_id}' in parents and trashed=false`,
+            fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
+            orderBy: 'createdTime desc'
+        });
+        
+        const subfolders = response.data.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+        const images = response.data.files.filter(f => f.mimeType.startsWith('image/'));
+        
+        for (let sf of subfolders) {
+            const sfRes = await drive.files.list({
+                q: `'${sf.id}' in parents and trashed=false and mimeType contains 'image/'`,
+                fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
+            });
+            images.push(...(sfRes.data.files || []).map(f => ({...f, folderName: sf.name})));
+        }
+
+        res.json(images);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin fetching client selections
+app.get('/api/admin/selections/:clientId', requireAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT file_id FROM client_selections WHERE client_id = ?', [req.params.clientId]);
+        res.json(rows.map(r => r.file_id));
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin download token for direct download from Drive API
+app.get('/api/admin/download-token/:clientId', requireAdmin, async (req, res) => {
+    try {
+        const auth = await getClientAuthClient(req.params.clientId);
+        const tokenRes = await auth.getAccessToken();
+        res.json({ token: tokenRes.token });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Admin bulk/single delete files from client's drive
+app.delete('/api/drive/files/:clientId/:fileId', requireAdmin, async (req, res) => {
+    try {
+        const auth = await getClientAuthClient(req.params.clientId);
+        const drive = google.drive({ version: 'v3', auth });
+        
+        await drive.files.delete({ fileId: req.params.fileId });
+        await pool.execute('DELETE FROM client_selections WHERE client_id = ? AND file_id = ?', [req.params.clientId, req.params.fileId]);
+        
+        res.json({ success: true });
+    } catch (err) {
+        console.error("Delete Error:", err);
+        res.status(500).json({ error: err.message });
+    }
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT ROUTES (GALLERY & GOOGLE AUTH)

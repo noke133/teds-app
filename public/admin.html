@@ -368,15 +368,21 @@ async function loadAdminGallery(clientId) {
           fetch('/api/admin/gallery/' + clientId),
           fetch('/api/admin/selections/' + clientId)
       ]);
-      adminGalleryPhotos = await galRes.json();
-      const sels = await selRes.json();
-      adminGallerySelections = new Set(sels);
+      const galData = await galRes.json();
+      const selData = await selRes.json();
+      
+      if (!galRes.ok) throw new Error(galData.error || "Failed to fetch gallery API");
+      if (!selRes.ok) throw new Error(selData.error || "Failed to fetch selections API");
+      
+      adminGalleryPhotos = galData;
+      adminGallerySelections = new Set(selData);
       
       document.getElementById('adminGalleryLoading').classList.add('hidden');
       renderAdminGallery();
    } catch(err) {
       document.getElementById('adminGalleryLoading').classList.add('hidden');
-      showToast('Failed to load gallery', 'error');
+      console.error(err);
+      showToast('Gallery error: ' + err.message, 'error');
    }
 }
 

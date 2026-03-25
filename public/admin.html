@@ -53,6 +53,9 @@
       <button class="nav-item" onclick="showCreateClient()" id="navCreate">
         <span class="icon"><i class="bi bi-person-plus-fill"></i></span> Create Client
       </button>
+      <button class="nav-item" onclick="showInvoices()" id="navInvoices">
+        <span class="icon"><i class="bi bi-receipt"></i></span> Invoices
+      </button>
       <button class="nav-item" style="color: var(--accent-red);" onclick="adminLogout()">
         <span class="icon"><i class="bi bi-box-arrow-right"></i></span> Log out
       </button>
@@ -175,8 +178,100 @@
          <div id="adminGalleryGrid" style="display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 12px;"></div>
       </div>
     </div>
+    <!-- Content Area: Invoices -->
+    <div id="invoicesView" class="content-scroll hidden">
+      <div class="page-header" style="display:flex; justify-content: space-between; align-items:flex-end; flex-wrap:wrap; gap:16px;">
+        <div>
+           <div class="breadcrumbs">Dashboard > Invoices</div>
+           <h1 class="page-title">Invoices</h1>
+           <p class="page-sub">Manage billing and share invoices directly to clients via WhatsApp.</p>
+        </div>
+        <div style="display:flex; gap: 8px;">
+           <button class="btn btn-ghost" onclick="openInvoiceSettings()"><i class="bi bi-gear"></i> Settings</button>
+           <button class="btn btn-primary" onclick="openInvoiceComposer()"><i class="bi bi-plus"></i> New Invoice</button>
+        </div>
+      </div>
+
+      <div class="card mt-24">
+        <div class="table-responsive">
+          <table class="table" style="width: 100%; text-align: left; border-collapse: collapse; font-size: 0.95rem;">
+            <thead>
+              <tr style="border-bottom: 1px solid var(--border);">
+                <th style="padding: 12px; color: var(--text-muted); font-weight: 500;">Invoice #</th>
+                <th style="padding: 12px; color: var(--text-muted); font-weight: 500;">Client</th>
+                <th style="padding: 12px; color: var(--text-muted); font-weight: 500;">Date</th>
+                <th style="padding: 12px; color: var(--text-muted); font-weight: 500;">Total</th>
+                <th style="padding: 12px; color: var(--text-muted); font-weight: 500;">Status</th>
+                <th style="padding: 12px; text-align: right;">Action</th>
+              </tr>
+            </thead>
+            <tbody id="invoicesListBody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
     
   </main>
+</div>
+
+<!-- Invoice Modals Overlay -->
+<div id="invoiceSettingsModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:flex; justify-content:center; align-items:center;">
+   <div class="card" style="width: 100%; max-width: 500px; max-height: 90vh; overflow-y:auto; position:relative;">
+      <button class="btn btn-ghost" style="position:absolute; top:12px; right:12px; padding:4px 8px;" onclick="closeInvoiceSettings()"><i class="bi bi-x-lg"></i></button>
+      <h2 class="card-title mb-16">Invoice Settings</h2>
+      <form id="invoiceSettingsForm">
+         <div class="form-group"><label class="form-label">Company Name</label><input type="text" id="setCompany" class="form-input" required></div>
+         <div class="form-group"><label class="form-label">Logo URL</label><input type="text" id="setLogo" class="form-input" placeholder="https://..."></div>
+         <div class="form-group"><label class="form-label">Address</label><textarea id="setAddress" class="form-input" rows="2" required></textarea></div>
+         <div class="grid-2">
+            <div class="form-group"><label class="form-label">Email</label><input type="email" id="setEmail" class="form-input"></div>
+            <div class="form-group"><label class="form-label">Phone</label><input type="text" id="setPhone" class="form-input"></div>
+         </div>
+         <div class="form-group"><label class="form-label">Bank Details</label><textarea id="setBank" class="form-input" rows="3" placeholder="Account No, IFSC, etc."></textarea></div>
+         <button type="submit" class="btn btn-primary btn-full mt-16">Save Settings</button>
+      </form>
+   </div>
+</div>
+
+<div id="invoiceComposerModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:flex; justify-content:center; align-items:center;">
+   <div class="card" style="width: 100%; max-width: 800px; max-height: 95vh; overflow-y:auto; position:relative; display:flex; flex-direction:column;">
+      <button class="btn btn-ghost" style="position:absolute; top:12px; right:12px; padding:4px 8px; z-index:10;" onclick="closeInvoiceComposer()"><i class="bi bi-x-lg"></i></button>
+      <h2 class="card-title mb-16">New Invoice</h2>
+      <form id="invoiceComposerForm" style="display:flex; flex-direction:column; gap:16px;">
+         <div class="grid-2">
+            <div class="form-group"><label class="form-label">Client Name</label><input type="text" id="invClientName" class="form-input" required></div>
+            <div class="form-group"><label class="form-label">Invoice Number</label><input type="text" id="invNumber" class="form-input" required></div>
+         </div>
+         <div class="grid-2">
+            <div class="form-group"><label class="form-label">Date</label><input type="date" id="invDate" class="form-input" required></div>
+            <div class="form-group"><label class="form-label">Due Date</label><input type="date" id="invDueDate" class="form-input" required></div>
+         </div>
+         <div class="form-group"><label class="form-label">Client Address</label><textarea id="invClientAddr" class="form-input" rows="2"></textarea></div>
+         
+         <h3 style="font-size: 1rem; border-bottom: 1px solid var(--border); padding-bottom: 8px; margin-top: 16px;">Line Items</h3>
+         <div id="invItemsList" style="display:flex; flex-direction:column; gap:8px;"></div>
+         <button type="button" class="btn btn-ghost" style="align-self: flex-start;" onclick="addInvoiceItem()"><i class="bi bi-plus"></i> Add Item</button>
+         
+         <div class="grid-2 mt-16" style="border-top: 1px dashed var(--border); padding-top: 16px;">
+            <div class="form-group"><label class="form-label">Notes</label><textarea id="invNotes" class="form-input" rows="3"></textarea></div>
+            <div style="display:flex; flex-direction:column; gap:8px;">
+               <div style="display:flex; justify-content:space-between;"><span>Subtotal:</span> <span id="invCalcSub">₹0.00</span></div>
+               <div style="display:flex; justify-content:space-between; align-items:center;">
+                  <span>Tax %:</span> 
+                  <input type="number" id="invTaxRate" class="form-input" style="width: 80px; padding: 4px;" value="0" min="0" step="0.1" onchange="calculateInvoiceTotal()">
+               </div>
+               <div style="display:flex; justify-content:space-between; font-weight:bold; font-size:1.2rem; border-top:1px solid var(--border); padding-top:8px;">
+                  <span>Total:</span> <span id="invCalcTot">₹0.00</span>
+               </div>
+            </div>
+         </div>
+         
+         <div style="display:flex; justify-content: flex-end; gap: 12px; margin-top: 24px;">
+            <select id="invStatus" class="form-input" style="width:auto;"><option value="Unpaid">Unpaid</option><option value="Paid">Paid</option></select>
+            <button type="submit" class="btn btn-primary">Save Invoice</button>
+         </div>
+      </form>
+   </div>
 </div>
 <style>@keyframes spin { 100% { transform: rotate(360deg); } }</style>
 
@@ -259,19 +354,15 @@ document.getElementById('createClientForm').onsubmit = async (e) => {
 };
 
 function showMainDashboard() {
-  document.getElementById('folderSection').classList.add('hidden');
-  document.getElementById('createClientView').classList.add('hidden');
+  hideAllViews();
   document.getElementById('mainDashboard').classList.remove('hidden');
   const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.add('active');
-  const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.remove('active');
   activeClientId = null; activeFolderId = null;
 }
 
 function showCreateClient() {
-  document.getElementById('folderSection').classList.add('hidden');
-  document.getElementById('mainDashboard').classList.add('hidden');
+  hideAllViews();
   document.getElementById('createClientView').classList.remove('hidden');
-  const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.remove('active');
   const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.add('active');
   document.getElementById('newClientName').focus();
   activeClientId = null; activeFolderId = null;
@@ -280,11 +371,8 @@ function showCreateClient() {
 function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
   if (!isConnected) { alert("The client must log in and connect their Google Drive before you can manage their folders."); return; }
   
-  document.getElementById('mainDashboard').classList.add('hidden');
-  document.getElementById('createClientView').classList.add('hidden');
+  hideAllViews();
   document.getElementById('folderSection').classList.remove('hidden');
-  const dNav = document.getElementById('navDashboard'); if(dNav) dNav.classList.remove('active');
-  const cNav = document.getElementById('navCreate'); if(cNav) cNav.classList.remove('active');
   
   document.getElementById('managingClientName').innerText = name;
   document.getElementById('managingPasscode').innerText = passcode;
@@ -507,5 +595,6 @@ async function adminDeleteSelected() {
    await loadAdminGallery(activeClientId);
 }
 </script>
+<script src="/invoice-admin.js"></script>
 </body>
 </html>

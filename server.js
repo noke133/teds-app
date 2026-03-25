@@ -8,9 +8,10 @@ const path = require('path');
 const { google } = require('googleapis');
 const Busboy = require('busboy');
 const axios = require('axios');
+const axios = require('axios');
+const crypto = require('crypto');
 const { pool, initDB } = require('./db');
 require('dotenv').config();
-
 const app = express();
 const PORT = process.env.PORT || 3000;
 const upload = multer({ storage: multer.memoryStorage() });
@@ -254,6 +255,146 @@ app.delete('/api/drive/files/:clientId/:fileId', requireAdmin, async (req, res) 
     }
 });
 
+// ═══════════════════════════════════════════════════════════════
+// INVOICE & SETTINGS ROUTES (ADMIN)
+// ═══════════════════════════════════════════════════════════════
+
+// Get Admin Settings
+app.get('/api/admin/settings', requireAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM admin_settings WHERE admin_id = ?', [req.session.adminId]);
+        res.json(rows[0] || {});
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Save Admin Settings
+app.post('/api/admin/settings', requireAdmin, async (req, res) => {
+    const { company_name, logo_url, address, email, phone, bank_details } = req.body;
+    try {
+        const [existing] = await pool.execute('SELECT admin_id FROM admin_settings WHERE admin_id = ?', [req.session.adminId]);
+        if (existing.length > 0) {
+            await pool.execute(
+                'UPDATE admin_settings SET company_name=?, logo_url=?, address=?, email=?, phone=?, bank_details=? WHERE admin_id=?',
+                [company_name, logo_url, address, email, phone, bank_details, req.session.adminId]
+            );
+        } else {
+            await pool.execute(
+                'INSERT INTO admin_settings (admin_id, company_name, logo_url, address, email, phone, bank_details) VALUES (?,?,?,?,?,?,?)',
+                [req.session.adminId, company_name, logo_url, address, email, phone, bank_details]
+            );
+        }
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Create Invoice
+app.post('/api/admin/invoices', requireAdmin, async (req, res) => {
+    const { client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, items } = req.body;
+    const public_token = crypto.randomBytes(16).toString('hex');
+    
+    // Start transaction manually via query since the pool helper doesn't expose connection directly securely without grabbing one
+    const conn = await pool.getConnection();
+    try {
+        await conn.beginTransaction();
+        const [invRes] = await conn.execute(
+            `INSERT INTO invoices (admin_id, public_token, client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.session.adminId, public_token, client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes]
+        );
+        const invoiceId = invRes.insertId;
+        
+        for(let item of items) {
+            await conn.execute(
+                'INSERT INTO invoice_items (invoice_id, description, quantity, unit_price) VALUES (?, ?, ?, ?)',
+                [invoiceId, item.description, item.quantity, item.unit_price]
+            );
+        }
+        
+        await conn.commit();
+        res.json({ success: true, id: invoiceId, public_token });
+    } catch (err) { 
+        await conn.rollback();
+        res.status(500).json({ error: err.message }); 
+    } finally {
+        conn.release();
+    }
+});
+
+// Edit Invoice
+app.put('/api/admin/invoices/:id', requireAdmin, async (req, res) => {
+    const { client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, items } = req.body;
+    const invoiceId = req.params.id;
+    
+    const conn = await pool.getConnection();
+    try {
+        // Verify ownership
+        const [ownerCheck] = await conn.execute('SELECT admin_id FROM invoices WHERE id = ?', [invoiceId]);
+        if (ownerCheck.length === 0 || ownerCheck[0].admin_id !== req.session.adminId) return res.status(403).json({ error: 'Unauthorized' });
+        
+        await conn.beginTransaction();
+        await conn.execute(
+            `UPDATE invoices SET client_name=?, client_address=?, invoice_number=?, date=?, due_date=?, status=?, subtotal=?, tax_rate=?, total=?, notes=? WHERE id=?`,
+            [client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, invoiceId]
+        );
+        
+        await conn.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId]);
+        for(let item of items) {
+            await conn.execute(
+                'INSERT INTO invoice_items (invoice_id, description, quantity, unit_price) VALUES (?, ?, ?, ?)',
+                [invoiceId, item.description, item.quantity, item.unit_price]
+            );
+        }
+        
+        await conn.commit();
+        res.json({ success: true });
+    } catch (err) { 
+        await conn.rollback();
+        res.status(500).json({ error: err.message }); 
+    } finally {
+        conn.release();
+    }
+});
+
+// List Invoices
+app.get('/api/admin/invoices', requireAdmin, async (req, res) => {
+    try {
+        const [rows] = await pool.execute('SELECT * FROM invoices WHERE admin_id = ? ORDER BY date DESC, id DESC', [req.session.adminId]);
+        res.json(rows);
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Update Invoice Status
+app.put('/api/admin/invoices/:id/status', requireAdmin, async (req, res) => {
+    try {
+        await pool.execute('UPDATE invoices SET status = ? WHERE id = ? AND admin_id = ?', [req.body.status, req.params.id, req.session.adminId]);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// Delete Invoice
+app.delete('/api/admin/invoices/:id', requireAdmin, async (req, res) => {
+    try {
+        await pool.execute('DELETE FROM invoices WHERE id = ? AND admin_id = ?', [req.params.id, req.session.adminId]);
+        res.json({ success: true });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
+// ═══════════════════════════════════════════════════════════════
+// PUBLIC INVOICE ROUTE
+// ═══════════════════════════════════════════════════════════════
+app.get('/api/invoice/:token', async (req, res) => {
+    try {
+        const [invoices] = await pool.execute('SELECT * FROM invoices WHERE public_token = ?', [req.params.token]);
+        if (invoices.length === 0) return res.status(404).json({ error: 'Invoice not found.' });
+        
+        const invoice = invoices[0];
+        const [items] = await pool.execute('SELECT * FROM invoice_items WHERE invoice_id = ?', [invoice.id]);
+        const [settings] = await pool.execute('SELECT * FROM admin_settings WHERE admin_id = ?', [invoice.admin_id]);
+        
+        res.json({ invoice, items, settings: settings[0] || {} });
+    } catch (err) { res.status(500).json({ error: err.message }); }
+});
+
 
 // ═══════════════════════════════════════════════════════════════
 // CLIENT ROUTES (GALLERY & GOOGLE AUTH)
@@ -398,6 +539,7 @@ app.post('/api/client/selections', requireClient, async (req, res) => {
 app.get('/superadmin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'superadmin.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
+app.get('/invoice', (req, res) => res.sendFile(path.join(__dirname, 'public', 'invoice.html')));
 app.get('*', (req, res) => {
     if (req.accepts('html')) res.sendFile(path.join(__dirname, 'public', 'index.html'));
     else res.status(404).end();

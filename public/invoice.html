@@ -1,0 +1,218 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Invoice</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
+    <style>
+        :root {
+            --bg: #f8fafc;
+            --surface: #ffffff;
+            --text-base: #0f172a;
+            --text-muted: #64748b;
+            --border: #e2e8f0;
+            --primary: #2563eb;
+            --success: #10b981;
+        }
+        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
+        body { margin: 0; padding: 40px 20px; background: var(--bg); color: var(--text-base); }
+        .invoice-container {
+            max-width: 800px; margin: 0 auto; background: var(--surface);
+            border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+            padding: 40px;
+        }
+        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid var(--primary); padding-bottom: 24px; }
+        .logo { max-height: 80px; max-width: 200px; object-fit: contain; }
+        .company-details { text-align: right; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
+        .company-name { font-size: 1.5rem; font-weight: 700; color: var(--text-base); margin-bottom: 8px; }
+        
+        .addresses { display: flex; justify-content: space-between; margin-bottom: 40px; gap: 20px; }
+        .bill-to h3 { margin: 0 0 12px 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
+        .bill-to p { margin: 0; line-height: 1.5; }
+        
+        .invoice-meta { text-align: right; }
+        .invoice-meta table { margin-left: auto; border-collapse: collapse; }
+        .invoice-meta th, .invoice-meta td { padding: 4px 12px; font-size: 0.95rem; }
+        .invoice-meta th { color: var(--text-muted); font-weight: 500; text-align: left; }
+        .invoice-meta td { font-weight: 600; text-align: right; }
+        
+        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; margin-top: 12px; }
+        .badge.paid { background: #d1fae5; color: #047857; }
+        .badge.unpaid { background: #fee2e2; color: #b91c1c; }
+        
+        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
+        .items-table th { background: var(--bg); padding: 12px; text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; border-bottom: 2px solid var(--border); }
+        .items-table td { padding: 16px 12px; border-bottom: 1px solid var(--border); }
+        
+        .totals { width: 100%; max-width: 300px; margin-left: auto; }
+        .totals table { width: 100%; border-collapse: collapse; }
+        .totals th, .totals td { padding: 8px 12px; text-align: right; }
+        .totals th { color: var(--text-muted); font-weight: 500; }
+        .totals tr.grand-total { font-size: 1.25rem; }
+        .totals tr.grand-total th, .totals tr.grand-total td { color: var(--text-base); font-weight: 700; border-top: 2px solid var(--border); padding-top: 16px; }
+        
+        .footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
+        .bank-details { background: var(--bg); padding: 16px; border-radius: 8px; margin-top: 16px; }
+        .bank-details h4 { margin: 0 0 8px 0; color: var(--text-base); }
+        
+        .actions { text-align: center; margin-bottom: 24px; }
+        .btn { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
+        .btn:hover { opacity: 0.9; }
+        
+        @media print {
+            body { background: white; padding: 0; }
+            .invoice-container { box-shadow: none; padding: 20px; max-width: 100%; }
+            .actions { display: none; }
+        }
+    </style>
+</head>
+<body>
+
+    <div class="actions">
+        <button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save as PDF</button>
+    </div>
+
+    <div class="invoice-container" id="invoiceRoot" style="display:none;">
+        <div class="header">
+            <div>
+                <img id="logo" class="logo" src="" alt="Company Logo" style="display:none;">
+                <div id="companyNameFallback" class="company-name" style="display:none;"></div>
+            </div>
+            <div class="company-details" id="companyDetails"></div>
+        </div>
+        
+        <div class="addresses">
+            <div class="bill-to">
+                <h3>Billed To</h3>
+                <p id="clientName" style="font-weight:600; font-size:1.1rem; color:var(--text-base);"></p>
+                <p id="clientAddress" style="white-space: pre-wrap; margin-top:4px;"></p>
+            </div>
+            
+            <div class="invoice-meta">
+                <table>
+                    <tr><th>Invoice No.</th><td id="invNumber"></td></tr>
+                    <tr><th>Issue Date</th><td id="invDate"></td></tr>
+                    <tr><th>Due Date</th><td id="invDueDate"></td></tr>
+                </table>
+                <div id="invStatusBadge" class="badge"></div>
+            </div>
+        </div>
+        
+        <table class="items-table">
+            <thead>
+                <tr>
+                    <th>Description</th>
+                    <th style="text-align:center;">Qty</th>
+                    <th style="text-align:right;">Price</th>
+                    <th style="text-align:right;">Amount</th>
+                </tr>
+            </thead>
+            <tbody id="itemsBody"></tbody>
+        </table>
+        
+        <div class="totals">
+            <table>
+                <tr><th>Subtotal</th><td id="subtotal"></td></tr>
+                <tr><th>Tax</th><td id="tax"></td></tr>
+                <tr class="grand-total"><th>Total</th><td id="total"></td></tr>
+            </table>
+        </div>
+        
+        <div class="footer">
+            <div id="notes" style="white-space: pre-wrap; margin-bottom: 24px;"></div>
+            <div class="bank-details" id="bankDetailsWrap" style="display:none;">
+                <h4>Payment Details</h4>
+                <div id="bankDetails" style="white-space: pre-wrap;"></div>
+            </div>
+        </div>
+    </div>
+    
+    <div id="error" style="text-align:center; padding: 40px; color: var(--text-muted);">
+        Loading invoice...
+    </div>
+
+<script>
+async function loadInvoice() {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get('token');
+    
+    if(!token) return document.getElementById('error').innerText = "Invalid Invoice Link";
+    
+    try {
+        const res = await fetch('/api/invoice/' + token);
+        const data = await res.json();
+        
+        if(!res.ok) throw new Error(data.error || "Failed to load invoice");
+        
+        const { invoice, items, settings } = data;
+        
+        // Render Settings (From)
+        if(settings.logo_url) {
+            document.getElementById('logo').src = settings.logo_url;
+            document.getElementById('logo').style.display = 'block';
+        } else if(settings.company_name) {
+            document.getElementById('companyNameFallback').innerText = settings.company_name;
+            document.getElementById('companyNameFallback').style.display = 'block';
+        }
+        
+        let details = '';
+        if(settings.address) details += settings.address + '<br>';
+        if(settings.email) details += settings.email + '<br>';
+        if(settings.phone) details += settings.phone;
+        document.getElementById('companyDetails').innerHTML = details;
+        
+        if(settings.bank_details) {
+            document.getElementById('bankDetails').innerText = settings.bank_details;
+            document.getElementById('bankDetailsWrap').style.display = 'block';
+        }
+        
+        // Render Invoice (To & Meta)
+        document.getElementById('clientName').innerText = invoice.client_name;
+        document.getElementById('clientAddress').innerText = invoice.client_address || '';
+        document.getElementById('invNumber').innerText = invoice.invoice_number;
+        document.getElementById('invDate').innerText = new Date(invoice.date).toLocaleDateString();
+        document.getElementById('invDueDate').innerText = new Date(invoice.due_date).toLocaleDateString();
+        
+        const badge = document.getElementById('invStatusBadge');
+        badge.innerText = invoice.status;
+        badge.className = `badge ${invoice.status.toLowerCase()}`;
+        
+        // Notes
+        document.getElementById('notes').innerText = invoice.notes || '';
+        
+        // Render Items
+        const tbody = document.getElementById('itemsBody');
+        items.forEach(item => {
+            const rowTotal = item.quantity * item.unit_price;
+            tbody.innerHTML += `
+                <tr>
+                    <td style="font-weight:500;">${item.description}</td>
+                    <td style="text-align:center;">${item.quantity}</td>
+                    <td style="text-align:right;">₹${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td style="text-align:right;">₹${rowTotal.toFixed(2)}</td>
+                </tr>
+            `;
+        });
+        
+        // Render Totals
+        document.getElementById('subtotal').innerText = '₹' + parseFloat(invoice.subtotal).toFixed(2);
+        
+        const taxAmt = parseFloat(invoice.total) - parseFloat(invoice.subtotal);
+        document.getElementById('tax').innerText = '₹' + taxAmt.toFixed(2) + ` (${invoice.tax_rate}%)`;
+        
+        document.getElementById('total').innerText = '₹' + parseFloat(invoice.total).toFixed(2);
+        
+        document.getElementById('error').style.display = 'none';
+        document.getElementById('invoiceRoot').style.display = 'block';
+        
+    } catch(err) {
+        document.getElementById('error').innerText = err.message;
+    }
+}
+
+loadInvoice();
+</script>
+</body>
+</html>

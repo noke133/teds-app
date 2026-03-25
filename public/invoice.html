@@ -400,8 +400,8 @@ async function loadInvoice() {
         
         const evDet = invoice.event_details || '';
         if(evDet){
-            document.getElementById('eventName').innerText = evDet.split('\\n')[0] || '-';
-            document.getElementById('eventAddress').innerText = evDet.split('\\n').slice(1).join('\\n') || '';
+            document.getElementById('eventName').innerText = evDet.split('\n')[0] || '-';
+            document.getElementById('eventAddress').innerText = evDet.split('\n').slice(1).join('\n') || '';
         } else {
             document.getElementById('eventName').innerText = invoice.client_name;
             document.getElementById('eventAddress').innerText = '';

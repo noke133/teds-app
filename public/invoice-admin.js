@@ -283,7 +283,7 @@ async function deleteInvoice(id) {
 
 function shareWhatsApp(token, clientName, totalAmount) {
     const link = window.location.origin + '/invoice?token=' + token;
-    const msg = `Hello ${clientName},\n\nYour invoice for ₹${totalAmount} has been generated. You can view, download, or print it using the secure link below:\n\n${link}\n\nThank you!`;
+    const msg = `Hello ${clientName},\n\nYour invoice for $${totalAmount} has been generated. You can view, download, or print it using the secure link below:\n\n${link}\n\nThank you!`;
     const encoded = encodeURIComponent(msg);
     window.open(`https://wa.me/?text=${encoded}`, '_blank');
 }

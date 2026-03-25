@@ -214,7 +214,7 @@ function renderGrid() {
         let scrollHTML = '';
         folders.forEach(f => {
            const folderPhotos = allPhotos.filter(p => p.folderName === f);
-           const cover = folderPhotos[0]?.thumbnailLink;
+           const cover = folderPhotos[0]?.thumbnailLink.replace(/=s\d+/, '=s400'); // 400px album cover
            const count = folderPhotos.length;
            scrollHTML += `
              <div class="album-card" onclick="document.getElementById('folder_${f}').scrollIntoView({behavior:'smooth'})">
@@ -232,9 +232,10 @@ function renderGrid() {
   let lastFolder = null;
   allPhotos.forEach(photo => {
     const isSel = selectedIds.has(photo.id);
+    const hqThumb = photo.thumbnailLink.replace(/=s\d+/, '=s600'); // Increase physical DPI quality to 600px width
     const html = `
       <div class="grid-item">
-        <img src="${photo.thumbnailLink}" loading="lazy" onclick="openLightbox('${photo.id}')">
+        <img src="${hqThumb}" loading="lazy" onclick="openLightbox('${photo.id}')">
         <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')">${isSel?'❤️':'♡'}</div>
       </div>
     `;
@@ -284,7 +285,7 @@ function openLightbox(fileId) {
   const img = document.getElementById('lbImage');
   const btn = document.getElementById('lbSelectBtn');
   
-  img.src = photo.thumbnailLink.replace(/=s\d+/, '=s2048');
+  img.src = photo.thumbnailLink.replace(/=s\d+/, '=s2048'); // Full super resolution 2048px lightbox
   const isSel = selectedIds.has(fileId);
   btn.style.opacity = isSel ? '1' : '0.5'; btn.innerText = isSel ? '❤️' : '🤍';
   lb.style.display = 'flex';
@@ -302,7 +303,7 @@ function toggleLightboxHeart() {
 
 async function logout() { await fetch('/api/client/logout', {method:'POST'}); window.location.reload(); }
 
-// Client-Side Direct API ZIP Downloader
+// Client-Side Direct API ZIP Downloader (Concurrent Fast Mode)
 async function downloadZip() {
   const p = document.getElementById('downloadProgress');
   const pText = document.getElementById('dlText');
@@ -328,18 +329,23 @@ async function downloadZip() {
     }
 
     let count = 0;
-    for(const ph of photosToDownload) {
-      pText.innerText = `Downloading ${count + 1} of ${photosToDownload.length}...`;
-      const res = await fetch(`https://www.googleapis.com/drive/v3/files/${ph.id}?alt=media`, {
-        headers: { 'Authorization': 'Bearer ' + token }
-      });
-      if(!res.ok) throw new Error("Google Drive API returned an error");
-      const blob = await res.blob();
-      
-      // Ensure unique filenames
-      let filename = ph.name || `photo_${count}.jpg`;
-      zip.file(filename, blob);
-      count++;
+    const BATCH_SIZE = 5; // Download 5 full resolution images concurrently
+    
+    for(let i = 0; i < photosToDownload.length; i += BATCH_SIZE) {
+        const batch = photosToDownload.slice(i, i + BATCH_SIZE);
+        pText.innerText = `Downloading ${count} of ${photosToDownload.length}... (Fast Mode)`;
+        
+        await Promise.all(batch.map(async (ph, bIndex) => {
+            const res = await fetch(`https://www.googleapis.com/drive/v3/files/${ph.id}?alt=media`, {
+                headers: { 'Authorization': 'Bearer ' + token }
+            });
+            if(!res.ok) throw new Error("Google Drive API limit reached");
+            const blob = await res.blob();
+            let filename = ph.name || `photo_${count + bIndex}.jpg`;
+            zip.file(filename, blob);
+        }));
+        
+        count += batch.length;
     }
     
     pText.innerText = "Zipping files... (this may take a moment)";

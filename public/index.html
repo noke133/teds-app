@@ -7,6 +7,7 @@
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
 
   <style>
     /* iOS Photos App Inspired Styles */
@@ -131,7 +132,7 @@
 <header>
   <h1 id="headerTitle">Library</h1>
   <div>
-    <button class="header-btn" onclick="downloadZip()" style="margin-right:12px; font-weight: 600;">⬇️ Zip</button>
+    <button class="header-btn" onclick="downloadZip()" style="margin-right:12px; font-weight: 600;"><i class="bi bi-file-earmark-zip"></i> Zip</button>
     <button class="header-btn" onclick="logout()">Log Out</button>
   </div>
 </header>
@@ -142,7 +143,7 @@
   <div id="googleSetupView" class="setup-container hidden">
     <h2>Connect Your Drive</h2>
     <p>To view and store your photos, please connect your Google Drive account. Your photographer needs this to deliver your images.</p>
-    <a href="/api/client/auth" class="btn-google">☁️ Connect Google Drive</a>
+    <a href="/api/client/auth" class="btn-google"><i class="bi bi-cloud"></i> Connect Google Drive</a>
   </div>
 
   <div id="galleryView" class="grid hidden"></div>
@@ -150,14 +151,14 @@
 </main>
 
 <nav id="bottomNav" class="hidden">
-  <div class="tab active" id="tabLibrary" onclick="switchTab('library')"><div class="tab-icon">🖼️</div>Library</div>
-  <div class="tab" id="tabSelections" onclick="switchTab('selections')"><div class="tab-icon">❤️</div>Selections</div>
+  <div class="tab active" id="tabLibrary" onclick="switchTab('library')"><div class="tab-icon"><i class="bi bi-images"></i></div>Library</div>
+  <div class="tab" id="tabSelections" onclick="switchTab('selections')"><div class="tab-icon"><i class="bi bi-heart-fill"></i></div>Selections</div>
 </nav>
 
 <div id="lightbox">
   <div class="lb-header">
     <button class="header-btn" onclick="closeLightbox()">Back</button>
-    <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()">❤️</button>
+    <button class="header-btn" id="lbSelectBtn" onclick="toggleLightboxHeart()"><i class="bi bi-heart-fill"></i></button>
   </div>
   <div class="lb-content"><img id="lbImage" src="" alt="Full Resolution"></div>
 </div>
@@ -236,7 +237,7 @@ function renderGrid() {
     const html = `
       <div class="grid-item">
         <img src="${hqThumb}" loading="lazy" onclick="openLightbox('${photo.id}')">
-        <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')">${isSel?'❤️':'♡'}</div>
+        <div class="heart-btn ${isSel?'selected':''}" onclick="toggleSelect(event, '${photo.id}')"><i class="bi bi-heart${isSel?'-fill':''}"></i></div>
       </div>
     `;
     
@@ -287,7 +288,7 @@ function openLightbox(fileId) {
   
   img.src = photo.thumbnailLink.replace(/=s\d+/, '=s2048'); // Full super resolution 2048px lightbox
   const isSel = selectedIds.has(fileId);
-  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerText = isSel ? '❤️' : '🤍';
+  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerHTML = isSel ? '<i class="bi bi-heart-fill"></i>' : '<i class="bi bi-heart"></i>';
   lb.style.display = 'flex';
 }
 
@@ -298,7 +299,7 @@ function toggleLightboxHeart() {
   toggleSelect(null, currentLightboxItem.id);
   const isSel = selectedIds.has(currentLightboxItem.id);
   const btn = document.getElementById('lbSelectBtn');
-  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerText = isSel ? '❤️' : '🤍';
+  btn.style.opacity = isSel ? '1' : '0.5'; btn.innerHTML = isSel ? '<i class="bi bi-heart-fill"></i>' : '<i class="bi bi-heart"></i>';
 }
 
 async function logout() { await fetch('/api/client/logout', {method:'POST'}); window.location.reload(); }

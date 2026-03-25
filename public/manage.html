@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>DriveShare — Manage Client Files</title>
   <meta name="description" content="Upload and manage files in a client's Google Drive folder." />
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
@@ -24,7 +25,7 @@
   <div class="container">
     <nav class="nav">
       <a class="nav-brand" href="admin.html">
-        <div class="brand-icon">☁️</div>
+        <div class="brand-icon"><i class="bi bi-cloud-fill"></i></div>
         DriveShare <span style="font-size:0.7rem;font-weight:400;color:var(--text-secondary);margin-left:6px;">Admin</span>
       </a>
       <div class="nav-actions">
@@ -49,7 +50,7 @@
     </div>
 
     <div id="no-folder-alert" class="alert alert-warning hidden">
-      ⚠️ This client has no Drive folder linked yet. Ask them to sign in first.
+      <i class="bi bi-exclamation-triangle-fill"></i> This client has no Drive folder linked yet. Ask them to sign in first.
     </div>
 
     <!-- Upload Zone -->
@@ -59,7 +60,7 @@
 
       <div class="drop-zone" id="drop-zone">
         <input type="file" id="file-input" multiple onchange="handleFileSelect(this.files)" />
-        <div class="drop-zone-icon">📤</div>
+        <div class="drop-zone-icon"><i class="bi bi-cloud-arrow-up"></i></div>
         <h3>Drag files here or click to browse</h3>
         <p>All file types supported · Multiple files allowed</p>
       </div>
@@ -322,7 +323,7 @@ async function loadFiles() {
     document.getElementById('files-count').textContent = files.length === 0 ? 'No files' : `${files.length} file${files.length!==1?'s':''}`;
 
     if (files.length === 0) {
-      container.innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No files yet</h3><p>Upload files above to add them here.</p></div>`;
+      container.innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="bi bi-folder2-open"></i></div><h3>No files yet</h3><p>Upload files above to add them here.</p></div>`;
       return;
     }
     container.innerHTML = `<div class="file-list">${files.map(fileItemHTML).join('')}</div>`;
@@ -362,7 +363,7 @@ async function deleteFile(fileId, name) {
     const newVal = cur - 1;
     countEl.textContent = newVal <= 0 ? 'No files' : `${newVal} file${newVal!==1?'s':''}`;
     if (newVal <= 0) {
-      document.getElementById('files-container').innerHTML = `<div class="empty-state"><div class="empty-icon">📂</div><h3>No files yet</h3><p>Upload files above.</p></div>`;
+      document.getElementById('files-container').innerHTML = `<div class="empty-state"><div class="empty-icon"><i class="bi bi-folder2-open"></i></div><h3>No files yet</h3><p>Upload files above.</p></div>`;
     }
   } catch (err) {
     toast('Delete failed: ' + err.message, 'error');
@@ -404,17 +405,17 @@ function formatSize(b) {
 }
 
 function getFileIcon(mimeType) {
-  if (!mimeType) return '📄';
-  if (mimeType.startsWith('image/')) return '🖼️';
-  if (mimeType.startsWith('video/')) return '🎬';
-  if (mimeType.startsWith('audio/')) return '🎵';
-  if (mimeType.includes('pdf')) return '📕';
-  if (mimeType.includes('spreadsheet')||mimeType.includes('excel')) return '📊';
-  if (mimeType.includes('presentation')||mimeType.includes('powerpoint')) return '📽️';
-  if (mimeType.includes('document')||mimeType.includes('word')) return '📝';
-  if (mimeType.includes('zip')||mimeType.includes('archive')) return '🗜️';
-  if (mimeType.includes('folder')) return '📁';
-  return '📄';
+  if (!mimeType) return '<i class="bi bi-file-earmark"></i>';
+  if (mimeType.startsWith('image/')) return '<i class="bi bi-image"></i>';
+  if (mimeType.startsWith('video/')) return '<i class="bi bi-film"></i>';
+  if (mimeType.startsWith('audio/')) return '<i class="bi bi-music-note-beamed"></i>';
+  if (mimeType.includes('pdf')) return '<i class="bi bi-file-earmark-pdf"></i>';
+  if (mimeType.includes('spreadsheet')||mimeType.includes('excel')) return '<i class="bi bi-file-earmark-spreadsheet"></i>';
+  if (mimeType.includes('presentation')||mimeType.includes('powerpoint')) return '<i class="bi bi-file-earmark-slides"></i>';
+  if (mimeType.includes('document')||mimeType.includes('word')) return '<i class="bi bi-file-earmark-word"></i>';
+  if (mimeType.includes('zip')||mimeType.includes('archive')) return '<i class="bi bi-file-earmark-zip"></i>';
+  if (mimeType.includes('folder')) return '<i class="bi bi-folder"></i>';
+  return '<i class="bi bi-file-earmark"></i>';
 }
 </script>
 </body>

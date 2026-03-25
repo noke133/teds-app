@@ -225,8 +225,8 @@ app.get('/api/client/auth', requireClient, (req, res) => {
     res.redirect(authUrl);
 });
 
-// Client oauth callback
-app.get('/api/client/callback', requireClient, async (req, res) => {
+// Client oauth callback (Kept as /api/admin/callback to match existing Google Console REDIRECT_URI)
+app.get('/api/admin/callback', requireClient, async (req, res) => {
     const { code, error } = req.query;
     if (error) return res.redirect('/?error=' + encodeURIComponent(error));
     if (!code) return res.redirect('/?error=no_code');

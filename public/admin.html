@@ -158,18 +158,20 @@
 
       <!-- NEW GALLERY SECTION -->
       <div class="card mt-24">
-         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <div style="display:flex; align-items: center; gap: 16px;">
-               <div class="card-title" style="margin: 0;"><i class="bi bi-images"></i> Client Gallery & Selections</div>
-               <select id="adminGalleryFilter" class="form-input" style="width: auto; padding: 4px 12px; font-size: 0.85rem;" onchange="renderAdminGallery()">
+         <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:16px;">
+            <h2 style="font-size: 1.25rem; font-weight: 700; margin:0;"><i class="bi bi-images"></i> Client Gallery & Selections 
+               <span id="galleryStats" style="font-size:0.8rem; color:var(--text-muted); font-weight:normal; margin-left:12px;"></span>
+            </h2>
+            <div style="display:flex; gap:12px;">
+               <select id="adminGalleryFilter" class="form-input" style="width:auto; padding: 4px 12px;" onchange="renderAdminGallery()">
                   <option value="all">All Photos</option>
                   <option value="selected">Client Selections Only</option>
                </select>
-            </div>
-            <div style="display:flex; gap: 8px;">
-               <button class="btn btn-ghost" onclick="adminDownloadZip()"><i class="bi bi-file-earmark-zip"></i> ZIP</button>
-               <button class="btn btn-danger" onclick="adminDeleteSelected()"><i class="bi bi-trash"></i> Delete</button>
-               <button class="btn btn-primary" onclick="adminSelectAll()"><i class="bi bi-check-all"></i> Select All</button>
+               <div id="adminGalleryControls" style="display:flex; gap:8px;">
+                  <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.9rem;" onclick="adminDownloadZip()"><i class="bi bi-file-earmark-zip"></i> ZIP</button>
+                  <button class="btn btn-ghost" style="padding: 6px 12px; font-size: 0.9rem; color: var(--accent-red);" onclick="adminDeleteSelected()"><i class="bi bi-trash"></i> Delete</button>
+                  <button class="btn btn-primary" style="padding: 6px 20px; font-size: 0.9rem;" onclick="adminSelectAll()">Select All</button>
+               </div>
             </div>
          </div>
          <div id="adminGalleryLoading" class="text-muted hidden" style="text-align:center; padding: 20px;">
@@ -487,6 +489,9 @@ async function loadAdminGallery(clientId) {
       adminGalleryPhotos = galData;
       adminGallerySelections = new Set(selData);
       
+      const stats = document.getElementById('galleryStats');
+      if(stats) stats.innerText = `(${adminGalleryPhotos.length} photos found, ${adminGallerySelections.size} likes)`;
+
       document.getElementById('adminGalleryLoading').classList.add('hidden');
       renderAdminGallery();
    } catch(err) {

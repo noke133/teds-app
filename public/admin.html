@@ -239,7 +239,11 @@
       <h2 class="card-title mb-16" id="composerTitle">New Invoice</h2>
       <form id="invoiceComposerForm" style="display:flex; flex-direction:column; gap:16px;">
          <div class="grid-2">
-            <div class="form-group"><label class="form-label">Client Name</label><input type="text" id="invClientName" class="form-input" required></div>
+            <div class="form-group">
+               <label class="form-label">Client Name</label>
+               <input type="text" id="invClientName" class="form-input" list="clientSuggestions" required>
+               <datalist id="clientSuggestions"></datalist>
+            </div>
             <div class="form-group"><label class="form-label">Invoice Number</label><input type="text" id="invNumber" class="form-input" required></div>
          </div>
          <div class="grid-2">
@@ -321,6 +325,13 @@ async function loadClients() {
   const clients = await res.json();
   const cl = document.getElementById('clientsList');
   cl.innerHTML = '';
+  
+  // Also sync to Invoice Datalist
+  const dl = document.getElementById('clientSuggestions');
+  if(dl) {
+    dl.innerHTML = clients.map(c => `<option value="${c.name}">`).join('');
+  }
+
   clients.forEach(c => {
     const link = window.location.origin + '/login?code=' + c.passcode;
     

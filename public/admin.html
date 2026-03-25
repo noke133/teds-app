@@ -507,7 +507,8 @@ function renderAdminGallery() {
    }
 
    if(photosToShow.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color: var(--text-muted);">No photos found for this filter.</div>';
+      const msg = filter === 'selected' ? 'No photos liked by the client yet.' : 'This gallery is currently empty.';
+      grid.innerHTML = `<div style="grid-column: 1/-1; padding:40px; text-align:center; color: var(--text-muted);"><i class="bi bi-images" style="font-size:2rem; display:block; margin-bottom:12px;"></i>${msg}</div>`;
       return;
    }
    

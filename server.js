@@ -203,18 +203,22 @@ app.get('/api/admin/gallery/:clientId', requireAdmin, async (req, res) => {
         const response = await drive.files.list({
             q: `'${drive_folder_id}' in parents and trashed=false`,
             fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
-            orderBy: 'createdTime desc'
+            orderBy: 'createdTime desc',
+            pageSize: 1000
         });
         
-        const subfolders = response.data.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-        const images = response.data.files.filter(f => f.mimeType.startsWith('image/'));
+        const subfolders = (response.data.files || []).filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+        const images = (response.data.files || []).filter(f => f.mimeType.startsWith('image/'));
         
         for (let sf of subfolders) {
-            const sfRes = await drive.files.list({
-                q: `'${sf.id}' in parents and trashed=false`,
-                fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
-            });
-            images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
+            try {
+                const sfRes = await drive.files.list({
+                    q: `'${sf.id}' in parents and trashed=false`,
+                    fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
+                    pageSize: 1000
+                });
+                images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
+            } catch(sfErr) { console.error(`Failed to list subfolder ${sf.name}:`, sfErr.message); }
         }
 
         res.json(images);
@@ -503,38 +507,47 @@ app.get('/api/client/gallery', requireClient, async (req, res) => {
         
         const response = await drive.files.list({
             q: `'${drive_folder_id}' in parents and trashed=false`,
-            fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
-            orderBy: 'createdTime desc'
+            fields: 'files(id, name, mimeType, thumbnailLink, webContentLink, createdTime)',
+            orderBy: 'createdTime desc',
+            pageSize: 1000
         });
         
-        const subfolders = response.data.files.filter(f => f.mimeType === 'application/vnd.google-apps.folder');
-        const images = response.data.files.filter(f => f.mimeType.startsWith('image/'));
+        const subfolders = (response.data.files || []).filter(f => f.mimeType === 'application/vnd.google-apps.folder');
+        const images = (response.data.files || []).filter(f => f.mimeType.startsWith('image/'));
         
         for (let sf of subfolders) {
-            const sfRes = await drive.files.list({
-                q: `'${sf.id}' in parents and trashed=false`,
-                fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
-            });
-            images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
+            try {
+                const sfRes = await drive.files.list({
+                    q: `'${sf.id}' in parents and trashed=false`,
+                    fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)',
+                    pageSize: 1000
+                });
+                images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
+            } catch(sfErr) { console.error(`Failed to list subfolder ${sf.name}:`, sfErr.message); }
         }
 
         res.json(images);
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { console.error("Client Gallery API Error:", err); res.status(500).json({ error: err.message }); }
 });
 
 app.get('/api/client/selections', requireClient, async (req, res) => {
     try {
         const [rows] = await pool.execute('SELECT file_id FROM client_selections WHERE client_id = ?', [req.session.clientId]);
         res.json(rows.map(r => r.file_id));
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { console.error("Get Selections Error:", err); res.status(500).json({ error: err.message }); }
 });
+
 app.post('/api/client/selections', requireClient, async (req, res) => {
     const { file_id, selected } = req.body;
+    console.log(`Selection update: client=${req.session.clientId}, file=${file_id}, selected=${selected}`);
     try {
-        if (selected) await pool.execute('INSERT IGNORE INTO client_selections (client_id, file_id) VALUES (?, ?)', [req.session.clientId, file_id]);
-        else await pool.execute('DELETE FROM client_selections WHERE client_id = ? AND file_id = ?', [req.session.clientId, file_id]);
+        if (selected) {
+            await pool.execute('INSERT IGNORE INTO client_selections (client_id, file_id) VALUES (?, ?)', [req.session.clientId, file_id]);
+        } else {
+            await pool.execute('DELETE FROM client_selections WHERE client_id = ? AND file_id = ?', [req.session.clientId, file_id]);
+        }
         res.json({ success: true });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { console.error("Post Selections Error:", err); res.status(500).json({ error: err.message }); }
 });
 
 // ─── Routing mappings ─────────────────────────────────────────

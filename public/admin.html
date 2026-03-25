@@ -236,7 +236,7 @@
 <div id="invoiceComposerModal" class="hidden" style="position:fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.5); z-index:999; display:flex; justify-content:center; align-items:center;">
    <div class="card" style="width: 100%; max-width: 800px; max-height: 95vh; overflow-y:auto; position:relative; display:flex; flex-direction:column;">
       <button class="btn btn-ghost" style="position:absolute; top:12px; right:12px; padding:4px 8px; z-index:10;" onclick="closeInvoiceComposer()"><i class="bi bi-x-lg"></i></button>
-      <h2 class="card-title mb-16">New Invoice</h2>
+      <h2 class="card-title mb-16" id="composerTitle">New Invoice</h2>
       <form id="invoiceComposerForm" style="display:flex; flex-direction:column; gap:16px;">
          <div class="grid-2">
             <div class="form-group"><label class="form-label">Client Name</label><input type="text" id="invClientName" class="form-input" required></div>

@@ -279,7 +279,7 @@ async function toggleSelect(e, fileId) {
   renderGrid();
   await fetch('/api/client/selections', {
     method: 'POST', headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({fileId: fileId, selected: newSelected})
+    body: JSON.stringify({file_id: fileId, selected: newSelected})
   });
 }
 

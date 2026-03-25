@@ -19,24 +19,40 @@ async function initDB() {
         await conn.execute(`
             CREATE TABLE IF NOT EXISTS clients (
                 id INT AUTO_INCREMENT PRIMARY KEY,
-                google_id VARCHAR(255) NOT NULL UNIQUE,
-                email VARCHAR(255) NOT NULL,
+                admin_id INT NOT NULL,
                 name VARCHAR(255) NOT NULL,
-                picture TEXT,
+                passcode VARCHAR(255) NOT NULL UNIQUE,
                 drive_folder_id VARCHAR(255),
+                refresh_token TEXT,
+                access_token TEXT,
+                token_expiry BIGINT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+                updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+                FOREIGN KEY (admin_id) REFERENCES admins(id) ON DELETE CASCADE
+            ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
+        `);
+
+        // Client selections table
+        await conn.execute(`
+            CREATE TABLE IF NOT EXISTS client_selections (
+                id INT AUTO_INCREMENT PRIMARY KEY,
+                client_id INT NOT NULL,
+                file_id VARCHAR(255) NOT NULL,
+                created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+                UNIQUE KEY uq_selection (client_id, file_id),
+                FOREIGN KEY (client_id) REFERENCES clients(id) ON DELETE CASCADE
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
 
         // Safely add missing columns to existing tables (old schema compat)
         for (const sql of [
-            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS picture TEXT",
-            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS drive_folder_id VARCHAR(255)",
-            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP",
-            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP"
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS admin_id INT AFTER id",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS passcode VARCHAR(255) AFTER name",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS refresh_token TEXT AFTER drive_folder_id",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS access_token TEXT AFTER refresh_token",
+            "ALTER TABLE clients ADD COLUMN IF NOT EXISTS token_expiry BIGINT AFTER access_token"
         ]) {
-            try { await conn.execute(sql); } catch (e) { /* ignore: column exists or syntax not supported */ }
+            try { await conn.execute(sql); } catch (e) { /* ignore */ }
         }
 
         // Admin tokens table (stores the refresh token)

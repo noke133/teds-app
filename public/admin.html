@@ -6,107 +6,150 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/style.css">
   <style>
-    .admin-layout { max-width: 1000px; margin: 40px auto; }
-    .client-card { background: rgba(255,255,255,0.03); border: 1px solid var(--border); padding: 16px; border-radius: 8px; margin-bottom: 12px; }
-    .client-link { color: var(--accent-blue); word-break: break-all; font-size: 0.85rem; }
-    .folder-view { display: none; }
+    /* Admin specific layout tweaks */
+    .client-card { 
+      display: flex; flex-direction: column; justify-content: space-between;
+    }
+    .client-link { color: var(--accent-primary); word-break: break-all; font-size: 0.85rem; font-weight: 500; text-decoration: none; }
+    .client-link:hover { text-decoration: underline; }
   </style>
 </head>
 <body>
 
+<!-- Login Screen -->
 <div id="loginSection" class="login-center">
-  <div class="login-box card">
-    <div class="login-logo">
-      <div class="logo-icon">📷</div>
-      <h1>Photographer Login</h1>
-      <p>Manage your clients and galleries</p>
+  <div class="login-box card" style="padding: 40px;">
+    <div class="login-logo text-center">
+      <div class="logo-icon text-center" style="margin: 0 auto 16px;">📷</div>
+      <h1 style="font-size: 1.5rem; font-weight: 700;">Photographer Login</h1>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">Manage your clients and galleries</p>
     </div>
     <form id="adminLoginForm">
-      <div class="form-group">
+      <div class="form-group text-left" style="text-align: left;">
         <label class="form-label">Username</label>
         <input type="text" id="adminUser" class="form-input" required>
       </div>
-      <div class="form-group">
+      <div class="form-group text-left" style="text-align: left;">
         <label class="form-label">Password</label>
         <input type="password" id="adminPass" class="form-input" required>
       </div>
-      <button type="submit" class="btn btn-primary btn-full mt-16">Login</button>
+      <button type="submit" class="btn btn-primary btn-full mt-16" style="padding: 12px; font-size: 1rem;">Login</button>
     </form>
   </div>
 </div>
 
-<div id="dashboardSection" class="hidden container admin-layout">
-  <div class="nav">
-    <div class="nav-brand"><div class="brand-icon">📷</div> Photographer Studio</div>
-    <button class="btn btn-ghost" onclick="adminLogout()">Logout</button>
-  </div>
+<!-- Main Dashboard Layout -->
+<div id="dashboardSection" class="app-layout hidden">
+  
+  <!-- Left Sidebar -->
+  <aside class="sidebar">
+    <a href="#" class="sidebar-brand">
+      <div class="brand-icon">📷</div> Studio
+    </a>
+    <nav class="sidebar-nav">
+      <button class="nav-item active" onclick="showMainDashboard()" id="navDashboard">
+        <span class="icon">📊</span> Dashboard
+      </button>
+      <button class="nav-item" style="color: var(--accent-red);" onclick="adminLogout()">
+        <span class="icon">🚪</span> Log out
+      </button>
+    </nav>
+  </aside>
 
-  <div id="mainDashboard" class="hidden mt-24">
-    <div class="grid-2">
-      <!-- Create Client -->
-      <div class="card">
-        <h3 class="card-title">New Client</h3>
-        <p class="card-sub">Generate a secure login passcode for a new client.</p>
-        <form id="createClientForm">
-          <div class="form-group">
-            <label class="form-label">Client / Event Name</label>
-            <input type="text" id="newClientName" class="form-input" required>
-          </div>
-          <button type="submit" class="btn btn-success mt-8">Create Client</button>
-        </form>
+  <!-- Right Main Area -->
+  <main class="main-content">
+    
+    <!-- Top Header -->
+    <header class="top-header">
+      <div class="header-search">
+        <span style="color: var(--text-muted);">🔍</span>
+        <input type="text" placeholder="Search clients or events...">
+      </div>
+      <div class="header-actions">
+        <button class="btn btn-primary" onclick="document.getElementById('newClientName').focus()">+ Create Client</button>
+      </div>
+    </header>
+
+    <!-- Content Area: Dashboard Overview -->
+    <div id="mainDashboard" class="content-scroll">
+      <div class="page-header">
+        <div class="breadcrumbs">Dashboard > Overview</div>
+        <h1 class="page-title">Client Campaigns</h1>
+        <p class="page-sub">Track, manage, and optimize your client galleries.</p>
+      </div>
+
+      <!-- Overview Stats / Create Client Card -->
+      <div class="grid-3 mb-16">
+        <div class="card" style="grid-column: span 1;">
+          <div class="card-title">Create template</div>
+          <div class="card-desc mb-16">Generate a secure login passcode framework for a new client event.</div>
+          <form id="createClientForm">
+            <div class="form-group">
+              <input type="text" id="newClientName" class="form-input" placeholder="Event Name (e.g., John Wedding)" required>
+            </div>
+            <button type="submit" class="btn btn-ghost btn-full mt-8" style="color: var(--accent-primary); border-color: var(--accent-light); background: var(--bg-app);">+ Create Client Space</button>
+          </form>
+        </div>
       </div>
 
       <!-- Clients List -->
-      <div class="card">
-        <h3 class="card-title">Your Clients</h3>
-        <div id="clientsList" class="mt-16" style="max-height: 400px; overflow-y:auto;"></div>
-      </div>
+      <h3 class="card-title mt-24" style="margin-bottom: 20px; font-size: 1.25rem;">Active Galleries</h3>
+      <div id="clientsList" class="grid-3"></div>
     </div>
-  </div>
 
-  <!-- Folder Management View -->
-  <div id="folderSection" class="folder-view mt-24">
-    <button class="btn btn-ghost mb-16" onclick="closeFolderView()">&larr; Back to Dashboard</button>
-    <div class="card">
-      <h3 class="card-title">Managing: <span id="managingClientName"></span></h3>
-      <p class="card-sub">Passcode: <strong class="text-primary" id="managingPasscode"></strong> | 
-         Link: <a href="#" id="managingLink" target="_blank" class="client-link">...</a></p>
-      
+    <!-- Content Area: Folder Management (Hidden by default) -->
+    <div id="folderSection" class="content-scroll hidden">
+      <div class="page-header">
+        <div class="breadcrumbs">
+           <a href="#" onclick="showMainDashboard()" style="color:var(--text-secondary); text-decoration:none;">Dashboard</a> > Gallery Management
+        </div>
+        <h1 class="page-title" id="managingClientName">Client Name</h1>
+        <p class="page-sub">Passcode: <strong class="text-primary" id="managingPasscode"></strong> | 
+           Link: <a href="#" id="managingLink" target="_blank" class="client-link">...</a></p>
+      </div>
+
       <div class="grid-2 mt-16">
-        <div>
-          <h4 class="mb-16">📁 Subfolders</h4>
-          <form id="createSubfolderForm" class="flex gap-8 mb-16">
-            <input type="text" id="subfolderName" class="form-input" placeholder="Folder Name" required>
+        <!-- Subfolders -->
+        <div class="card">
+          <div class="card-title mb-16">📁 Subfolders Layout</div>
+          <form id="createSubfolderForm" style="display: flex; gap: 8px; margin-bottom: 24px;">
+            <input type="text" id="subfolderName" class="form-input" placeholder="Folder Name (e.g. Ceremony)" required>
             <button type="submit" class="btn btn-primary">Create</button>
           </form>
-          <div id="subfolderList" class="file-list"></div>
+          
+          <div style="font-size: 0.85rem; font-weight: 600; color: var(--text-secondary); margin-bottom: 12px; text-transform: uppercase;">Existing Folders</div>
+          <div id="subfolderList" style="display: flex; flex-direction: column; gap: 8px;"></div>
         </div>
 
-        <div>
-           <h4 class="mb-16">🖼️ Upload to Folder</h4>
+        <!-- Uploads -->
+        <div class="card">
+           <div class="card-title mb-16">🖼️ Upload to Folder</div>
            <div class="form-group">
               <label class="form-label">Select Destination Folder</label>
               <select id="uploadTargetFolder" class="form-input">
                 <option value="ROOT">Root Gallery</option>
               </select>
            </div>
+           
            <div class="drop-zone mt-16" id="uploadZone">
               <div class="drop-zone-icon">☁️</div>
-              <h3>Drag & Drop Photos</h3>
-              <p>or click to select</p>
+              <h3 style="font-weight: 600;">Drag & Drop Photos</h3>
+              <p style="color: var(--text-secondary); font-size: 0.85rem;">or click to browse</p>
               <input type="file" id="fileInput" multiple accept="image/*">
            </div>
+           
            <div class="progress-wrap hidden" id="uploadProgressWrap">
               <div class="progress-bar" id="uploadProgressBar"></div>
            </div>
         </div>
       </div>
     </div>
-  </div>
-
+    
+  </main>
 </div>
 
 <div id="toast-container"></div>
+
 <script>
 function showToast(msg, type='info') {
   const c = document.getElementById('toast-container');
@@ -114,15 +157,12 @@ function showToast(msg, type='info') {
   setTimeout(() => t.remove(), 3000);
 }
 
-let activeClientId = null;
-let activeFolderId = null;
+let activeClientId = null; let activeFolderId = null;
 
-// Auth Check
 fetch('/api/admin/status').then(r=>r.json()).then(data => {
   if (data.loggedIn) {
     document.getElementById('loginSection').classList.add('hidden');
     document.getElementById('dashboardSection').classList.remove('hidden');
-    document.getElementById('mainDashboard').classList.remove('hidden');
     loadClients();
   }
 });
@@ -130,12 +170,10 @@ fetch('/api/admin/status').then(r=>r.json()).then(data => {
 document.getElementById('adminLoginForm').onsubmit = async (e) => {
   e.preventDefault();
   const res = await fetch('/api/admin/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({ username: e.target.adminUser.value, password: e.target.adminPass.value })
   });
-  if(res.ok) location.reload();
-  else showToast('Login Failed', 'error');
+  if(res.ok) location.reload(); else showToast('Login Failed', 'error');
 };
 
 async function adminLogout() { await fetch('/api/admin/logout', {method:'POST'}); location.reload(); }
@@ -147,24 +185,26 @@ async function loadClients() {
   cl.innerHTML = '';
   clients.forEach(c => {
     const link = window.location.origin + '/login?code=' + c.passcode;
-    const connectedBadge = c.isConnected ? 
-        '<span class="badge badge-green mt-8">Drive Connected</span>' : 
-        '<span class="badge badge-yellow mt-8">Waiting for Client</span>';
     
+    // Dribbble style card rendering
     cl.innerHTML += `
-      <div class="client-card">
-        <div style="display:flex; justify-content:space-between; align-items:flex-start;">
-          <div>
-            <strong>${c.name}</strong><br>
-            <span class="badge badge-blue mt-8">Code: ${c.passcode}</span>
-            ${connectedBadge}
+      <div class="card client-card">
+        <div>
+          <div style="display:flex; justify-content:space-between; align-items:flex-start; margin-bottom:8px;">
+            <div class="card-title" style="margin:0;">${c.name}</div>
+            <span class="badge ${c.isConnected ? 'badge-green' : 'badge-yellow'}">${c.isConnected ? 'Connected' : 'Waiting'}</span>
           </div>
-          <button class="btn btn-sm btn-ghost" onclick="manageClient('${c.id}', '${c.name}', '${c.passcode}', '${c.drive_folder_id}', ${c.isConnected})">
-             ${c.isConnected ? 'Manage' : 'View Link'}
-          </button>
+          <div class="badge badge-blue mb-16" style="margin-top:4px;">Code: ${c.passcode}</div>
+          <div class="card-desc mb-16">
+            A targeted campaign gallery setup. Waiting for the client to connect their drive to receive photos.
+          </div>
         </div>
-        <div class="mt-8">
-          <a href="${link}" target="_blank" class="client-link">${link}</a>
+        
+        <div>
+           <a href="${link}" target="_blank" class="client-link mb-16" style="display:block;">${link}</a>
+           <button class="btn btn-ghost btn-full mt-8" onclick="manageClient('${c.id}', '${c.name}', '${c.passcode}', '${c.drive_folder_id}', ${c.isConnected})">
+              ${c.isConnected ? 'Manage Gallery Content' : 'View Gallery Link'}
+           </button>
         </div>
       </div>
     `;
@@ -174,42 +214,38 @@ async function loadClients() {
 document.getElementById('createClientForm').onsubmit = async (e) => {
   e.preventDefault();
   const res = await fetch('/api/clients', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({name: e.target.newClientName.value})
   });
   if(res.ok) {
     showToast('Client created! Share the link with them to connect their Drive.', 'success');
-    e.target.reset();
-    loadClients();
+    e.target.reset(); loadClients();
   } else {
     const data = await res.json();
     showToast('Error: ' + (data.error || 'Server failed'), 'error');
   }
 };
 
+function showMainDashboard() {
+  document.getElementById('folderSection').classList.add('hidden');
+  document.getElementById('mainDashboard').classList.remove('hidden');
+  activeClientId = null; activeFolderId = null;
+}
+
 function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
-  if (!isConnected) {
-     alert("The client must log in and connect their Google Drive before you can manage their folders.");
-     return;
-  }
+  if (!isConnected) { alert("The client must log in and connect their Google Drive before you can manage their folders."); return; }
+  
   document.getElementById('mainDashboard').classList.add('hidden');
-  document.getElementById('folderSection').style.display = 'block';
+  document.getElementById('folderSection').classList.remove('hidden');
+  
   document.getElementById('managingClientName').innerText = name;
   document.getElementById('managingPasscode').innerText = passcode;
   const link = window.location.origin + '/login?code=' + passcode;
   document.getElementById('managingLink').href = link;
   document.getElementById('managingLink').innerText = link;
 
-  activeClientId = clientId;
-  activeFolderId = drive_folder_id;
+  activeClientId = clientId; activeFolderId = drive_folder_id;
   loadSubfolders(clientId, drive_folder_id);
-}
-
-function closeFolderView() {
-  document.getElementById('folderSection').style.display = 'none';
-  document.getElementById('mainDashboard').classList.remove('hidden');
-  activeClientId = null; activeFolderId = null;
 }
 
 async function loadSubfolders(clientId, rootFolderId) {
@@ -220,21 +256,22 @@ async function loadSubfolders(clientId, rootFolderId) {
   const list = document.getElementById('subfolderList');
   const sel = document.getElementById('uploadTargetFolder');
   
-  list.innerHTML = '';
-  sel.innerHTML = `<option value="${rootFolderId}">Root Gallery</option>`;
-  if(subfolders.length === 0) list.innerHTML = '<p class="text-muted text-center py-4">No subfolders yet.</p>';
+  list.innerHTML = ''; sel.innerHTML = `<option value="${rootFolderId}">Root Gallery</option>`;
+  if(subfolders.length === 0) list.innerHTML = '<p class="text-muted py-4" style="font-size:0.9rem;">No subfolders yet.</p>';
   
   subfolders.forEach(f => {
     sel.innerHTML += `<option value="${f.id}">${f.name}</option>`;
-    list.innerHTML += `<div class="file-item"><div class="file-icon">📁</div><div class="file-info"><div class="file-name">${f.name}</div></div></div>`;
+    list.innerHTML += `<div style="display:flex; align-items:center; gap:12px; padding:12px; background:var(--bg-app); border-radius:var(--radius-sm); border:1px solid var(--border);">
+      <div style="font-size:1.25rem;">📁</div>
+      <div style="font-weight:600; font-size:0.95rem;">${f.name}</div>
+    </div>`;
   });
 }
 
 document.getElementById('createSubfolderForm').onsubmit = async (e) => {
   e.preventDefault();
   const res = await fetch(`/api/drive/folders/${activeClientId}/${activeFolderId}`, {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    method: 'POST', headers: {'Content-Type': 'application/json'},
     body: JSON.stringify({name: e.target.subfolderName.value})
   });
   if(res.ok) { showToast('Subfolder Created', 'success'); e.target.reset(); loadSubfolders(activeClientId, activeFolderId); }
@@ -256,9 +293,7 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
           body: JSON.stringify({ name: files[i].name, mimeType: files[i].type })
        });
        const { sessionUrl } = await sessionRes.json();
-       await fetch(sessionUrl, {
-          method: 'PUT', headers: { 'Content-Length': files[i].size }, body: files[i]
-       });
+       await fetch(sessionUrl, { method: 'PUT', headers: { 'Content-Length': files[i].size }, body: files[i] });
        bar.style.width = Math.round(((i + 1) / files.length) * 100) + '%';
      } catch(err) { showToast('Error uploading ' + files[i].name, 'error'); }
   }
@@ -266,7 +301,6 @@ document.getElementById('fileInput').addEventListener('change', async (e) => {
   setTimeout(()=>document.getElementById('uploadProgressWrap').classList.add('hidden'), 2000);
   document.getElementById('fileInput').value = '';
 });
-
 </script>
 </body>
 </html>

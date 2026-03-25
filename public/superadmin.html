@@ -5,75 +5,97 @@
   <title>Super Admin | Photographer SaaS</title>
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <link rel="stylesheet" href="/style.css">
-  <style>
-    .super-admin-layout { max-width: 800px; margin: 40px auto; }
-  </style>
 </head>
 <body>
 
 <div id="loginSection" class="login-center">
-  <div class="login-box card">
-    <div class="login-logo">
-      <div class="logo-icon">👑</div>
-      <h1>Super Admin</h1>
-      <p>Manage Photographers</p>
+  <div class="login-box card" style="padding: 40px;">
+    <div class="login-logo text-center">
+      <div class="logo-icon text-center" style="margin: 0 auto 16px;">👑</div>
+      <h1 style="font-size: 1.5rem; font-weight: 700;">Super Admin</h1>
+      <p style="color: var(--text-secondary); font-size: 0.9rem;">Manage Photographers</p>
     </div>
     <form id="saLoginForm">
-      <div class="form-group">
+      <div class="form-group text-left" style="text-align: left;">
         <label class="form-label">Username</label>
         <input type="text" id="saUsername" class="form-input" required placeholder="superadmin">
       </div>
-      <div class="form-group">
+      <div class="form-group text-left" style="text-align: left;">
         <label class="form-label">Password</label>
         <input type="password" id="saPassword" class="form-input" required placeholder="superadmindummy">
       </div>
-      <button type="submit" class="btn btn-primary btn-full mt-16">Login as Super Admin</button>
+      <button type="submit" class="btn btn-primary btn-full mt-16" style="padding: 12px; font-size: 1rem;">Login</button>
     </form>
   </div>
 </div>
 
-<div id="dashboardSection" class="hidden container super-admin-layout">
-  <div class="nav">
-    <div class="nav-brand"><div class="brand-icon">👑</div> Super Admin Dashboard</div>
-    <button class="btn btn-ghost" onclick="saLogout()">Logout</button>
-  </div>
+<div id="dashboardSection" class="app-layout hidden">
+  
+  <aside class="sidebar">
+    <a href="#" class="sidebar-brand">
+      <div class="brand-icon">👑</div> Admin
+    </a>
+    <nav class="sidebar-nav">
+      <button class="nav-item active">
+        <span class="icon">👥</span> Photographers
+      </button>
+      <button class="nav-item" style="color: var(--accent-red);" onclick="saLogout()">
+        <span class="icon">🚪</span> Log out
+      </button>
+    </nav>
+  </aside>
 
-  <div class="page-header">
-    <h1>Photographers Manager</h1>
-    <p>Create and manage photographer accounts.</p>
-  </div>
-
-  <div class="card mb-16">
-    <h3 class="card-title">Add New Photographer</h3>
-    <form id="addAdminForm" class="grid-3 mt-16" style="align-items: end;">
-      <div class="form-group">
-        <label class="form-label">Username</label>
-        <input type="text" id="newAdminUser" class="form-input" required>
+  <main class="main-content">
+    <header class="top-header">
+      <div class="header-search">
+        <span style="color: var(--text-muted);">🔍</span>
+        <input type="text" placeholder="Search photographers...">
       </div>
-      <div class="form-group">
-        <label class="form-label">Password</label>
-        <input type="text" id="newAdminPass" class="form-input" required>
-      </div>
-      <button type="submit" class="btn btn-success" style="margin-bottom: 16px;">Create Photographer</button>
-    </form>
-  </div>
+    </header>
 
-  <div class="card">
-    <h3 class="card-title mb-16">Existing Photographers</h3>
-    <div class="table-wrap">
-      <table>
-        <thead>
-          <tr>
-            <th>ID</th>
-            <th>Username</th>
-            <th>Created</th>
-            <th>Actions</th>
-          </tr>
-        </thead>
-        <tbody id="adminsTableBody"></tbody>
-      </table>
+    <div class="content-scroll">
+      <div class="page-header">
+        <div class="breadcrumbs">Dashboard > Accounts</div>
+        <h1 class="page-title">Photographers Manager</h1>
+        <p class="page-sub">Create and manage photographer accounts.</p>
+      </div>
+
+      <div class="grid-3 mb-24">
+        <div class="card" style="grid-column: span 1;">
+          <h3 class="card-title">Add New Photographer</h3>
+          <p class="card-desc mb-16">Provision a new account for a photographer.</p>
+          <form id="addAdminForm">
+            <div class="form-group">
+              <label class="form-label">Username</label>
+              <input type="text" id="newAdminUser" class="form-input" required>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Password</label>
+              <input type="text" id="newAdminPass" class="form-input" required>
+            </div>
+            <button type="submit" class="btn btn-success btn-full mt-8">Create Photographer</button>
+          </form>
+        </div>
+      </div>
+
+      <div class="card">
+        <h3 class="card-title mb-16">Existing Photographers</h3>
+        <div style="overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-sm);">
+          <table style="width: 100%; text-align: left; border-collapse: collapse;">
+            <thead style="background: var(--bg-app); border-bottom: 1px solid var(--border);">
+              <tr>
+                <th style="padding: 12px 16px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">ID</th>
+                <th style="padding: 12px 16px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Username</th>
+                <th style="padding: 12px 16px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Created</th>
+                <th style="padding: 12px 16px; color: var(--text-secondary); font-size: 0.85rem; font-weight: 600;">Actions</th>
+              </tr>
+            </thead>
+            <tbody id="adminsTableBody"></tbody>
+          </table>
+        </div>
+      </div>
     </div>
-  </div>
+  </main>
 </div>
 
 <div id="toast-container"></div>
@@ -81,33 +103,19 @@
 <script>
 function showToast(msg, type='info') {
   const c = document.getElementById('toast-container');
-  const t = document.createElement('div');
-  t.className = `toast ${type}`;
-  t.innerText = msg;
-  c.appendChild(t);
+  const t = document.createElement('div'); t.className = `toast ${type}`; t.innerText = msg; c.appendChild(t);
   setTimeout(() => t.remove(), 3000);
 }
 
-// Check session
-fetch('/api/superadmin/status').then(r=>r.json()).then(data => {
-  if(data.loggedIn) showDashboard();
-});
+fetch('/api/superadmin/status').then(r=>r.json()).then(data => { if(data.loggedIn) showDashboard(); });
 
 document.getElementById('saLoginForm').onsubmit = async (e) => {
   e.preventDefault();
   const res = await fetch('/api/superadmin/login', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      username: e.target.saUsername.value,
-      password: e.target.saPassword.value
-    })
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username: e.target.saUsername.value, password: e.target.saPassword.value })
   });
-  if(res.ok) {
-    showDashboard();
-  } else {
-    showToast('Login Failed', 'error');
-  }
+  if(res.ok) showDashboard(); else showToast('Login Failed', 'error');
 };
 
 async function showDashboard() {
@@ -116,10 +124,7 @@ async function showDashboard() {
   loadAdmins();
 }
 
-async function saLogout() {
-  await fetch('/api/superadmin/logout', {method:'POST'});
-  location.reload();
-}
+async function saLogout() { await fetch('/api/superadmin/logout', {method:'POST'}); location.reload(); }
 
 async function loadAdmins() {
   const res = await fetch('/api/superadmin/admins');
@@ -128,11 +133,11 @@ async function loadAdmins() {
   tbody.innerHTML = '';
   admins.forEach(a => {
     tbody.innerHTML += `
-      <tr>
-        <td>${a.id}</td>
-        <td>${a.username}</td>
-        <td>${new Date(a.created_at).toLocaleString()}</td>
-        <td><button class="btn btn-danger btn-sm" onclick="delAdmin(${a.id})">Delete</button></td>
+      <tr style="border-bottom: 1px solid var(--border);">
+        <td style="padding: 16px;">${a.id}</td>
+        <td style="padding: 16px; font-weight: 500;">${a.username}</td>
+        <td style="padding: 16px; color: var(--text-secondary);">${new Date(a.created_at).toLocaleString()}</td>
+        <td style="padding: 16px;"><button class="btn btn-danger btn-sm" style="padding: 6px 12px; font-size:0.8rem;" onclick="delAdmin(${a.id})">Delete</button></td>
       </tr>
     `;
   });
@@ -141,20 +146,11 @@ async function loadAdmins() {
 document.getElementById('addAdminForm').onsubmit = async (e) => {
   e.preventDefault();
   const res = await fetch('/api/superadmin/admins', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({
-      username: e.target.newAdminUser.value,
-      password: e.target.newAdminPass.value
-    })
+    method: 'POST', headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({ username: e.target.newAdminUser.value, password: e.target.newAdminPass.value })
   });
-  if(res.ok) {
-    showToast('Photographer created', 'success');
-    e.target.reset();
-    loadAdmins();
-  } else {
-    showToast('Error creating photographer', 'error');
-  }
+  if(res.ok) { showToast('Photographer created', 'success'); e.target.reset(); loadAdmins(); } 
+  else { showToast('Error creating photographer', 'error'); }
 };
 
 window.delAdmin = async (id) => {

@@ -39,7 +39,7 @@ async function loadInvoices() {
                     <td style="padding: 12px; font-weight:600; color: var(--text-base);">${inv.invoice_number}</td>
                     <td style="padding: 12px; font-weight:500;">${inv.client_name}</td>
                     <td style="padding: 12px; color: var(--text-muted);">${d}</td>
-                    <td style="padding: 12px; font-weight:700;">₹${inv.total}</td>
+                    <td style="padding: 12px; font-weight:700;">$${inv.total}</td>
                     <td style="padding: 12px;">
                        <select onchange="updateInvoiceStatus(${inv.id}, this.value)" style="padding:4px 8px; border-radius:4px; font-weight:600; background:${statusColor}22; color:${statusColor}; border:none;">
                           <option value="Unpaid" ${inv.status.toLowerCase()==='unpaid'?'selected':''}>Unpaid</option>
@@ -150,11 +150,14 @@ async function editInvoice(id) {
         
         document.getElementById('invClientName').value = invoice.client_name;
         document.getElementById('invClientAddr').value = invoice.client_address || '';
+        document.getElementById('invEventDetails').value = invoice.event_details || '';
         document.getElementById('invNumber').value = invoice.invoice_number;
         document.getElementById('invDate').value = invoice.date.split('T')[0];
         document.getElementById('invDueDate').value = invoice.due_date.split('T')[0];
         document.getElementById('invStatus').value = invoice.status;
+        document.getElementById('invDiscount').value = invoice.discount || 0;
         document.getElementById('invTaxRate').value = invoice.tax_rate;
+        document.getElementById('invShipping').value = invoice.shipping || 0;
         document.getElementById('invNotes').value = invoice.notes || '';
         
         invoiceItems = items.map(it => ({ id: it.id, description: it.description, quantity: it.quantity, unit_price: it.unit_price }));
@@ -202,11 +205,17 @@ function updateItem(index, field, value) {
 
 function calculateInvoiceTotal() {
     let subtotal = invoiceItems.reduce((acc, item) => acc + (item.quantity * item.unit_price), 0);
-    let taxRate = parseFloat(document.getElementById('invTaxRate').value) || 0;
-    let total = subtotal + (subtotal * (taxRate / 100));
+    let discount = parseFloat(document.getElementById('invDiscount').value) || 0;
+    let subLessDiscount = Math.max(0, subtotal - discount);
     
-    document.getElementById('invCalcSub').innerText = '₹' + subtotal.toFixed(2);
-    document.getElementById('invCalcTot').innerText = '₹' + total.toFixed(2);
+    let taxRate = parseFloat(document.getElementById('invTaxRate').value) || 0;
+    let taxAmt = subLessDiscount * (taxRate / 100);
+    let shipping = parseFloat(document.getElementById('invShipping').value) || 0;
+    
+    let total = subLessDiscount + taxAmt + shipping;
+    
+    document.getElementById('invCalcSub').innerText = subtotal.toFixed(2);
+    document.getElementById('invCalcTot').innerText = total.toFixed(2);
     
     document.getElementById('invCalcSub').dataset.val = subtotal;
     document.getElementById('invCalcTot').dataset.val = total;
@@ -219,12 +228,15 @@ document.getElementById('invoiceComposerForm')?.addEventListener('submit', async
     const payload = {
         client_name: document.getElementById('invClientName').value,
         client_address: document.getElementById('invClientAddr').value,
+        event_details: document.getElementById('invEventDetails').value,
         invoice_number: document.getElementById('invNumber').value,
         date: document.getElementById('invDate').value,
         due_date: document.getElementById('invDueDate').value,
         status: document.getElementById('invStatus').value,
         subtotal: parseFloat(document.getElementById('invCalcSub').dataset.val) || 0,
+        discount: parseFloat(document.getElementById('invDiscount').value) || 0,
         tax_rate: parseFloat(document.getElementById('invTaxRate').value) || 0,
+        shipping: parseFloat(document.getElementById('invShipping').value) || 0,
         total: parseFloat(document.getElementById('invCalcTot').dataset.val) || 0,
         notes: document.getElementById('invNotes').value,
         items: invoiceItems

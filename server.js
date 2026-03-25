@@ -288,7 +288,7 @@ app.post('/api/admin/settings', requireAdmin, async (req, res) => {
 
 // Create Invoice
 app.post('/api/admin/invoices', requireAdmin, async (req, res) => {
-    const { client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, items } = req.body;
+    const { client_name, client_address, event_details, invoice_number, date, due_date, status, subtotal, discount, tax_rate, shipping, total, notes, items } = req.body;
     const public_token = crypto.randomBytes(16).toString('hex');
     
     // Start transaction manually via query since the pool helper doesn't expose connection directly securely without grabbing one
@@ -296,9 +296,9 @@ app.post('/api/admin/invoices', requireAdmin, async (req, res) => {
     try {
         await conn.beginTransaction();
         const [invRes] = await conn.execute(
-            `INSERT INTO invoices (admin_id, public_token, client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes) 
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-            [req.session.adminId, public_token, client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes]
+            `INSERT INTO invoices (admin_id, public_token, client_name, client_address, event_details, invoice_number, date, due_date, status, subtotal, discount, tax_rate, shipping, total, notes) 
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+            [req.session.adminId, public_token, client_name, client_address, event_details||'', invoice_number, date, due_date, status, subtotal, discount||0, tax_rate, shipping||0, total, notes]
         );
         const invoiceId = invRes.insertId;
         
@@ -321,7 +321,7 @@ app.post('/api/admin/invoices', requireAdmin, async (req, res) => {
 
 // Edit Invoice
 app.put('/api/admin/invoices/:id', requireAdmin, async (req, res) => {
-    const { client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, items } = req.body;
+    const { client_name, client_address, event_details, invoice_number, date, due_date, status, subtotal, discount, tax_rate, shipping, total, notes, items } = req.body;
     const invoiceId = req.params.id;
     
     const conn = await pool.getConnection();
@@ -332,8 +332,8 @@ app.put('/api/admin/invoices/:id', requireAdmin, async (req, res) => {
         
         await conn.beginTransaction();
         await conn.execute(
-            `UPDATE invoices SET client_name=?, client_address=?, invoice_number=?, date=?, due_date=?, status=?, subtotal=?, tax_rate=?, total=?, notes=? WHERE id=?`,
-            [client_name, client_address, invoice_number, date, due_date, status, subtotal, tax_rate, total, notes, invoiceId]
+            `UPDATE invoices SET client_name=?, client_address=?, event_details=?, invoice_number=?, date=?, due_date=?, status=?, subtotal=?, discount=?, tax_rate=?, shipping=?, total=?, notes=? WHERE id=?`,
+            [client_name, client_address, event_details||'', invoice_number, date, due_date, status, subtotal, discount||0, tax_rate, shipping||0, total, notes, invoiceId]
         );
         
         await conn.execute('DELETE FROM invoice_items WHERE invoice_id = ?', [invoiceId]);

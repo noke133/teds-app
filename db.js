@@ -71,17 +71,28 @@ async function initDB() {
                 public_token VARCHAR(64) NOT NULL UNIQUE,
                 client_name VARCHAR(255) NOT NULL,
                 client_address TEXT,
+                event_details TEXT,
                 invoice_number VARCHAR(50) NOT NULL,
                 date DATE NOT NULL,
                 due_date DATE NOT NULL,
                 status VARCHAR(20) DEFAULT 'Unpaid',
                 subtotal DECIMAL(10,2) NOT NULL,
+                discount DECIMAL(10,2) DEFAULT 0,
                 tax_rate DECIMAL(5,2) DEFAULT 0,
+                shipping DECIMAL(10,2) DEFAULT 0,
                 total DECIMAL(10,2) NOT NULL,
                 notes TEXT,
                 created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
             ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4
         `);
+
+        for (const sql of [
+            "ALTER TABLE invoices ADD COLUMN event_details TEXT AFTER client_address",
+            "ALTER TABLE invoices ADD COLUMN discount DECIMAL(10,2) DEFAULT 0 AFTER subtotal",
+            "ALTER TABLE invoices ADD COLUMN shipping DECIMAL(10,2) DEFAULT 0 AFTER tax_rate"
+        ]) {
+            try { await conn.execute(sql); } catch (e) { /* ignore */ }
+        }
 
         await conn.execute(`
             CREATE TABLE IF NOT EXISTS invoice_items (

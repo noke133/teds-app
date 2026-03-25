@@ -4,67 +4,236 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Invoice</title>
-    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+    <link href="https://fonts.googleapis.com/css2?family=Segoe+UI:wght@400;600;700&display=swap" rel="stylesheet">
     <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.1/font/bootstrap-icons.css">
     <style>
         :root {
-            --bg: #f8fafc;
-            --surface: #ffffff;
-            --text-base: #0f172a;
-            --text-muted: #64748b;
-            --border: #e2e8f0;
-            --primary: #2563eb;
-            --success: #10b981;
+            --gray-dark: #7a7a7a;
+            --gray-light: #f1f2f3;
+            --gray-row: #f9f9f9;
+            --text-dark: #333333;
+            --text-light: #666666;
+            --border-color: #dcdcdc;
         }
-        * { box-sizing: border-box; font-family: 'Inter', sans-serif; }
-        body { margin: 0; padding: 40px 20px; background: var(--bg); color: var(--text-base); }
-        .invoice-container {
-            max-width: 800px; margin: 0 auto; background: var(--surface);
-            border-radius: 12px; box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
-            padding: 40px;
+        * { box-sizing: border-box; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; }
+        body { margin: 0; padding: 40px 20px; background: #eaedf0; color: var(--text-dark); display: flex; flex-direction: column; align-items: center; }
+        
+        .invoice-box {
+            background: white;
+            width: 100%;
+            max-width: 850px;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+            position: relative;
         }
-        .header { display: flex; justify-content: space-between; align-items: flex-start; margin-bottom: 40px; border-bottom: 2px solid var(--primary); padding-bottom: 24px; }
-        .logo { max-height: 80px; max-width: 200px; object-fit: contain; }
-        .company-details { text-align: right; color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; }
-        .company-name { font-size: 1.5rem; font-weight: 700; color: var(--text-base); margin-bottom: 8px; }
+
+        /* Top Gray Header Area */
+        .top-gray-header {
+            background: var(--gray-light);
+            padding: 40px 40px 20px 40px;
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-start;
+        }
+
+        .header-title-wrapper {
+            align-self: flex-end;
+            margin-top: 40px;
+        }
+        .header-title {
+            font-size: 2.4rem;
+            color: #4a5568;
+            font-weight: 600;
+            letter-spacing: 2px;
+            margin: 0;
+            text-transform: uppercase;
+        }
+
+        .company-header-info {
+            display: flex;
+            align-items: flex-start;
+            gap: 20px;
+            text-align: right;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+            line-height: 1.4;
+            max-width: 400px;
+        }
+        .company-details strong {
+            font-size: 1.3rem;
+            display: block;
+            margin-bottom: 4px;
+        }
+        .logo-placeholder {
+            width: 80px;
+            height: 80px;
+            background: var(--gray-dark);
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: white;
+            font-weight: bold;
+            flex-shrink: 0;
+        }
+        .logo-img {
+            max-width: 90px;
+            max-height: 90px;
+            border-radius: 50%;
+            object-fit: cover;
+        }
+
+        /* Invoice Meta Section */
+        .invoice-meta-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            padding: 20px 40px;
+            font-size: 0.95rem;
+        }
+        .meta-group {
+            display: flex;
+            flex-direction: column;
+            gap: 4px;
+        }
+        .uppercase-label {
+            text-transform: uppercase;
+            font-weight: 600;
+            color: var(--text-dark);
+        }
+
+        /* Addresses Section */
+        .addresses-row {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px 20px 40px;
+            border-top: 1px solid var(--border-color);
+            margin: 0 40px;
+            padding-top: 20px;
+        }
+        .address-block {
+            flex: 1;
+            font-size: 0.9rem;
+            line-height: 1.5;
+            color: var(--text-dark);
+        }
+        .address-block h3 {
+            margin: 0 0 8px 0;
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-dark);
+            text-transform: uppercase;
+        }
+        .address-name {
+            font-weight: bold;
+            margin-bottom: 2px;
+        }
+
+        /* Table */
+        .table-container {
+            padding: 0 40px;
+            margin-bottom: 30px;
+        }
+        table.items-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+            border-bottom: 1px solid var(--border-color);
+            table-layout: fixed;
+        }
         
-        .addresses { display: flex; justify-content: space-between; margin-bottom: 40px; gap: 20px; }
-        .bill-to h3 { margin: 0 0 12px 0; color: var(--text-muted); font-size: 0.85rem; text-transform: uppercase; letter-spacing: 0.5px; }
-        .bill-to p { margin: 0; line-height: 1.5; }
+        .col-desc { width: 50%; }
+        .col-qty { width: 12%; text-align: center; }
+        .col-unit { width: 18%; text-align: left; padding-left: 10px; }
+        .col-total { width: 20%; text-align: right; }
+
+        .items-table th {
+            background: var(--gray-dark);
+            color: white;
+            padding: 8px 12px;
+            text-transform: uppercase;
+            font-weight: 600;
+            font-size: 0.8rem;
+            border-right: 1px solid white;
+        }
+        .items-table th:last-child { border-right: none; }
         
-        .invoice-meta { text-align: right; }
-        .invoice-meta table { margin-left: auto; border-collapse: collapse; }
-        .invoice-meta th, .invoice-meta td { padding: 4px 12px; font-size: 0.95rem; }
-        .invoice-meta th { color: var(--text-muted); font-weight: 500; text-align: left; }
-        .invoice-meta td { font-weight: 600; text-align: right; }
+        .items-table td {
+            padding: 10px 12px;
+            border-right: 1px solid var(--border-color);
+        }
+        .items-table td:first-child { border-left: 1px solid var(--border-color); }
+        .items-table td:last-child { text-align: right; border-right: 1px solid var(--border-color); }
         
-        .badge { display: inline-block; padding: 6px 12px; border-radius: 20px; font-weight: 600; font-size: 0.85rem; margin-top: 12px; }
-        .badge.paid { background: #d1fae5; color: #047857; }
-        .badge.unpaid { background: #fee2e2; color: #b91c1c; }
+        .items-table tbody tr:nth-child(even) { background: var(--gray-row); }
+        .currency-symbol { position: absolute; }
+        .cell-currency { position: relative; padding-left: 20px !important; text-align: right; }
+
+        /* Bottom Section */
+        .bottom-section {
+            display: flex;
+            justify-content: space-between;
+            padding: 0 40px 40px 40px;
+        }
+        .remarks-col {
+            flex: 1;
+            padding-right: 40px;
+            font-size: 0.85rem;
+        }
+        .remarks-col h4 {
+            margin: 0 0 8px 0;
+            font-size: 0.9rem;
+            color: var(--text-dark);
+        }
+        .totals-col {
+            width: 300px;
+        }
+        .totals-table {
+            width: 100%;
+            border-collapse: collapse;
+            font-size: 0.9rem;
+        }
+        .totals-table td {
+            padding: 6px 0;
+            text-align: right;
+            border-bottom: 1px solid #eee;
+        }
+        .totals-table td:first-child {
+            text-align: right;
+            padding-right: 20px;
+            font-weight: 600;
+            color: var(--text-dark);
+            text-transform: uppercase;
+            font-size: 0.8rem;
+        }
         
-        .items-table { width: 100%; border-collapse: collapse; margin-bottom: 40px; }
-        .items-table th { background: var(--bg); padding: 12px; text-align: left; color: var(--text-muted); font-weight: 600; font-size: 0.9rem; border-bottom: 2px solid var(--border); }
-        .items-table td { padding: 16px 12px; border-bottom: 1px solid var(--border); }
-        
-        .totals { width: 100%; max-width: 300px; margin-left: auto; }
-        .totals table { width: 100%; border-collapse: collapse; }
-        .totals th, .totals td { padding: 8px 12px; text-align: right; }
-        .totals th { color: var(--text-muted); font-weight: 500; }
-        .totals tr.grand-total { font-size: 1.25rem; }
-        .totals tr.grand-total th, .totals tr.grand-total td { color: var(--text-base); font-weight: 700; border-top: 2px solid var(--border); padding-top: 16px; }
-        
-        .footer { margin-top: 60px; padding-top: 24px; border-top: 1px solid var(--border); color: var(--text-muted); font-size: 0.9rem; }
-        .bank-details { background: var(--bg); padding: 16px; border-radius: 8px; margin-top: 16px; }
-        .bank-details h4 { margin: 0 0 8px 0; color: var(--text-base); }
-        
+        .balance-due {
+            background: var(--gray-dark);
+            color: white;
+            font-weight: bold;
+            font-size: 1.1rem;
+        }
+        .balance-due td {
+            padding: 10px !important;
+            border-bottom: none;
+        }
+        .balance-due td:first-child {
+            color: white;
+            font-size: 1rem;
+        }
+
         .actions { text-align: center; margin-bottom: 24px; }
-        .btn { padding: 10px 20px; background: var(--primary); color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
+        .btn { padding: 10px 20px; background: #2563eb; color: white; border: none; border-radius: 6px; font-weight: 600; cursor: pointer; font-size: 1rem; display: inline-flex; align-items: center; gap: 8px; }
         .btn:hover { opacity: 0.9; }
-        
+
         @media print {
             body { background: white; padding: 0; }
-            .invoice-container { box-shadow: none; padding: 20px; max-width: 100%; }
+            .invoice-box { box-shadow: none; max-width: 100%; }
             .actions { display: none; }
+            .top-gray-header { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .items-table th { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .items-table tbody tr:nth-child(even) { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .balance-due { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+            .logo-placeholder { -webkit-print-color-adjust: exact; print-color-adjust: exact; }
         }
     </style>
 </head>
@@ -74,62 +243,118 @@
         <button class="btn" onclick="window.print()"><i class="bi bi-printer"></i> Print / Save as PDF</button>
     </div>
 
-    <div class="invoice-container" id="invoiceRoot" style="display:none;">
-        <div class="header">
-            <div>
-                <img id="logo" class="logo" src="" alt="Company Logo" style="display:none;">
-                <div id="companyNameFallback" class="company-name" style="display:none;"></div>
-            </div>
-            <div class="company-details" id="companyDetails"></div>
-        </div>
+    <div class="invoice-box" id="invoiceRoot" style="display:none;">
         
-        <div class="addresses">
-            <div class="bill-to">
-                <h3>Billed To</h3>
-                <p id="clientName" style="font-weight:600; font-size:1.1rem; color:var(--text-base);"></p>
-                <p id="clientAddress" style="white-space: pre-wrap; margin-top:4px;"></p>
+        <!-- Header -->
+        <div class="top-gray-header">
+            <div class="header-title-wrapper">
+                <h1 class="header-title">INVOICE</h1>
             </div>
-            
-            <div class="invoice-meta">
-                <table>
-                    <tr><th>Invoice No.</th><td id="invNumber"></td></tr>
-                    <tr><th>Issue Date</th><td id="invDate"></td></tr>
-                    <tr><th>Due Date</th><td id="invDueDate"></td></tr>
-                </table>
-                <div id="invStatusBadge" class="badge"></div>
+            <div class="company-header-info">
+                <div class="company-details" id="companyDetails">
+                    <strong id="companyNameFallback">&lt;Your Company Name&gt;</strong>
+                    <div id="companyAddress" style="white-space:pre-wrap;">&lt;Your address&gt;</div>
+                    <div id="companyContact" style="white-space:pre-wrap;">&lt;Your contact details&gt;</div>
+                </div>
+                <div>
+                    <img id="logo" class="logo-img" src="" style="display:none;">
+                    <div id="logoText" class="logo-placeholder">LOGO</div>
+                </div>
             </div>
         </div>
-        
-        <table class="items-table">
-            <thead>
-                <tr>
-                    <th>Description</th>
-                    <th style="text-align:center;">Qty</th>
-                    <th style="text-align:right;">Price</th>
-                    <th style="text-align:right;">Amount</th>
-                </tr>
-            </thead>
-            <tbody id="itemsBody"></tbody>
-        </table>
-        
-        <div class="totals">
-            <table>
-                <tr><th>Subtotal</th><td id="subtotal"></td></tr>
-                <tr><th>Tax</th><td id="tax"></td></tr>
-                <tr class="grand-total"><th>Total</th><td id="total"></td></tr>
+
+        <!-- Meta -->
+        <div class="invoice-meta-row">
+            <div class="meta-group">
+                <span class="uppercase-label">INVOICE NO. <span id="invNumber" style="font-weight:normal; margin-left:8px;"></span></span>
+            </div>
+            <div class="meta-group" style="text-align:right;">
+                <span class="uppercase-label">DATE: <span id="invDate" style="font-weight:normal;"></span></span>
+                <span style="font-style: italic; color: #666; font-size: 0.85rem;" id="termsText">&lt;Payment terms&gt;</span>
+            </div>
+        </div>
+
+        <!-- Addresses -->
+        <div class="addresses-row">
+            <div class="address-block">
+                <h3>BILL TO</h3>
+                <div class="address-name" id="clientName">&lt;Contact Name&gt;</div>
+                <div id="clientCompany" style="display:none;"></div>
+                <div id="clientAddress" style="white-space:pre-wrap;">&lt;Address&gt;</div>
+                <div id="clientPhone"></div>
+                <div id="clientEmail"></div>
+            </div>
+            <div class="address-block" style="padding-left: 40px;">
+                <h3>EVENT DETAILS / SHIP TO</h3>
+                <div class="address-name" id="eventName">&lt;Name / Dept&gt;</div>
+                <div id="eventAddress" style="white-space:pre-wrap;">&lt;Address&gt;</div>
+            </div>
+        </div>
+
+        <!-- Items Table -->
+        <div class="table-container">
+            <table class="items-table">
+                <thead>
+                    <tr>
+                        <th class="col-desc">DESCRIPTION</th>
+                        <th class="col-qty">QTY</th>
+                        <th class="col-unit">UNIT PRICE</th>
+                        <th class="col-total">TOTAL</th>
+                    </tr>
+                </thead>
+                <tbody id="itemsBody">
+                    <!-- Rows injected here -->
+                </tbody>
             </table>
         </div>
-        
-        <div class="footer">
-            <div id="notes" style="white-space: pre-wrap; margin-bottom: 24px;"></div>
-            <div class="bank-details" id="bankDetailsWrap" style="display:none;">
-                <h4>Payment Details</h4>
-                <div id="bankDetails" style="white-space: pre-wrap;"></div>
+
+        <!-- Bottom section (Remarks & Totals) -->
+        <div class="bottom-section">
+            <div class="remarks-col">
+                <h4>Remarks / Payment Instructions:</h4>
+                <div id="notes" style="white-space:pre-wrap;"></div>
+                <div id="bankDetailsWrap" style="margin-top:20px; display:none;">
+                    <h4>Bank Details / UPI:</h4>
+                    <div id="bankDetails" style="white-space:pre-wrap;"></div>
+                </div>
+            </div>
+            <div class="totals-col">
+                <table class="totals-table">
+                    <tr>
+                        <td>SUBTOTAL</td>
+                        <td id="subtotal">0.00</td>
+                    </tr>
+                    <tr>
+                        <td>DISCOUNT</td>
+                        <td id="discount">0.00</td>
+                    </tr>
+                    <tr>
+                        <td>SUBTOTAL LESS DISCOUNT</td>
+                        <td id="subtotalLess">0.00</td>
+                    </tr>
+                    <tr>
+                        <td>TAX RATE</td>
+                        <td id="taxRate">0.00%</td>
+                    </tr>
+                    <tr>
+                        <td>TOTAL TAX</td>
+                        <td id="taxAmt">0.00</td>
+                    </tr>
+                    <tr>
+                        <td>SHIPPING / HANDLING</td>
+                        <td id="shipping">0.00</td>
+                    </tr>
+                    <tr class="balance-due">
+                        <td>Balance Due <span style="font-weight:normal; margin-left:8px;">$</span></td>
+                        <td id="total">0.00</td>
+                    </tr>
+                </table>
             </div>
         </div>
+
     </div>
     
-    <div id="error" style="text-align:center; padding: 40px; color: var(--text-muted);">
+    <div id="error" style="text-align:center; padding: 40px; color: var(--gray-dark); font-weight: 600;">
         Loading invoice...
     </div>
 
@@ -148,20 +373,16 @@ async function loadInvoice() {
         
         const { invoice, items, settings } = data;
         
-        // Render Settings (From)
+        // Render Settings
         if(settings.logo_url) {
             document.getElementById('logo').src = settings.logo_url;
             document.getElementById('logo').style.display = 'block';
-        } else if(settings.company_name) {
-            document.getElementById('companyNameFallback').innerText = settings.company_name;
-            document.getElementById('companyNameFallback').style.display = 'block';
+            document.getElementById('logoText').style.display = 'none';
         }
         
-        let details = '';
-        if(settings.address) details += settings.address + '<br>';
-        if(settings.email) details += settings.email + '<br>';
-        if(settings.phone) details += settings.phone;
-        document.getElementById('companyDetails').innerHTML = details;
+        document.getElementById('companyNameFallback').innerText = settings.company_name || 'Photography Studio';
+        document.getElementById('companyAddress').innerText = settings.address || '';
+        document.getElementById('companyContact').innerText = (settings.email ? settings.email + '\n' : '') + (settings.phone ? settings.phone : '');
         
         if(settings.bank_details) {
             document.getElementById('bankDetails').innerText = settings.bank_details;
@@ -173,36 +394,61 @@ async function loadInvoice() {
         document.getElementById('clientAddress').innerText = invoice.client_address || '';
         document.getElementById('invNumber').innerText = invoice.invoice_number;
         document.getElementById('invDate').innerText = new Date(invoice.date).toLocaleDateString();
-        document.getElementById('invDueDate').innerText = new Date(invoice.due_date).toLocaleDateString();
         
-        const badge = document.getElementById('invStatusBadge');
-        badge.innerText = invoice.status;
-        badge.className = `badge ${invoice.status.toLowerCase()}`;
+        const dueD = new Date(invoice.due_date).toLocaleDateString();
+        document.getElementById('termsText').innerText = `Payment Due: ${dueD} (${invoice.status})`;
         
-        // Notes
-        document.getElementById('notes').innerText = invoice.notes || '';
+        const evDet = invoice.event_details || '';
+        if(evDet){
+            document.getElementById('eventName').innerText = evDet.split('\\n')[0] || '-';
+            document.getElementById('eventAddress').innerText = evDet.split('\\n').slice(1).join('\\n') || '';
+        } else {
+            document.getElementById('eventName').innerText = invoice.client_name;
+            document.getElementById('eventAddress').innerText = '';
+        }
+        
+        document.getElementById('notes').innerText = invoice.notes || 'Thank you for your business.';
         
         // Render Items
         const tbody = document.getElementById('itemsBody');
+        tbody.innerHTML = '';
         items.forEach(item => {
             const rowTotal = item.quantity * item.unit_price;
             tbody.innerHTML += `
                 <tr>
-                    <td style="font-weight:500;">${item.description}</td>
-                    <td style="text-align:center;">${item.quantity}</td>
-                    <td style="text-align:right;">₹${parseFloat(item.unit_price).toFixed(2)}</td>
-                    <td style="text-align:right;">₹${rowTotal.toFixed(2)}</td>
+                    <td>${item.description}</td>
+                    <td class="col-qty">${item.quantity}</td>
+                    <td class="cell-currency"><span class="currency-symbol">$</span>${parseFloat(item.unit_price).toFixed(2)}</td>
+                    <td class="cell-currency"><span class="currency-symbol">$</span>${rowTotal.toFixed(2)}</td>
                 </tr>
             `;
         });
         
+        // Fill empty rows if less than 6
+        const emptyRows = Math.max(0, 6 - items.length);
+        for(let i=0; i<emptyRows; i++){
+            tbody.innerHTML += `<tr><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td><td>&nbsp;</td></tr>`;
+        }
+        
         // Render Totals
-        document.getElementById('subtotal').innerText = '₹' + parseFloat(invoice.subtotal).toFixed(2);
+        const disc = parseFloat(invoice.discount || 0);
+        const ship = parseFloat(invoice.shipping || 0);
+        const sub = parseFloat(invoice.subtotal || 0);
+        const subLess = sub - disc;
         
-        const taxAmt = parseFloat(invoice.total) - parseFloat(invoice.subtotal);
-        document.getElementById('tax').innerText = '₹' + taxAmt.toFixed(2) + ` (${invoice.tax_rate}%)`;
+        const taxRate = parseFloat(invoice.tax_rate || 0);
+        const taxAmt = subLess * (taxRate / 100);
+        const total = subLess + taxAmt + ship;
         
-        document.getElementById('total').innerText = '₹' + parseFloat(invoice.total).toFixed(2);
+        document.getElementById('subtotal').innerText = sub.toFixed(2);
+        document.getElementById('discount').innerText = disc.toFixed(2);
+        document.getElementById('subtotalLess').innerText = subLess.toFixed(2);
+        
+        document.getElementById('taxRate').innerText = taxRate + '%';
+        document.getElementById('taxAmt').innerText = taxAmt.toFixed(2);
+        
+        document.getElementById('shipping').innerText = ship.toFixed(2);
+        document.getElementById('total').innerText = total.toFixed(2);
         
         document.getElementById('error').style.display = 'none';
         document.getElementById('invoiceRoot').style.display = 'block';

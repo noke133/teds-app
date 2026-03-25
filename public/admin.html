@@ -182,7 +182,10 @@ document.getElementById('createClientForm').onsubmit = async (e) => {
     showToast('Client created! Share the link with them to connect their Drive.', 'success');
     e.target.reset();
     loadClients();
-  } else showToast('Error creating client.', 'error');
+  } else {
+    const data = await res.json();
+    showToast('Error: ' + (data.error || 'Server failed'), 'error');
+  }
 };
 
 function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {

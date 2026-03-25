@@ -139,7 +139,10 @@ app.post('/api/clients', requireAdmin, async (req, res) => {
     try {
         const [result] = await pool.execute('INSERT INTO clients (admin_id, name, passcode) VALUES (?, ?, ?)', [req.session.adminId, name, passcode]);
         res.json({ success: true, clientId: result.insertId, passcode: passcode });
-    } catch (err) { res.status(500).json({ error: err.message }); }
+    } catch (err) { 
+        console.error('Client creation error:', err);
+        res.status(500).json({ error: err.message }); 
+    }
 });
 
 // Photographer fetching clients' drive contents (uses Client's token)

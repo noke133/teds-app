@@ -211,10 +211,10 @@ app.get('/api/admin/gallery/:clientId', requireAdmin, async (req, res) => {
         
         for (let sf of subfolders) {
             const sfRes = await drive.files.list({
-                q: `'${sf.id}' in parents and trashed=false and mimeType contains 'image/'`,
+                q: `'${sf.id}' in parents and trashed=false`,
                 fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
             });
-            images.push(...(sfRes.data.files || []).map(f => ({...f, folderName: sf.name})));
+            images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
         }
 
         res.json(images);
@@ -369,10 +369,10 @@ app.get('/api/client/gallery', requireClient, async (req, res) => {
         
         for (let sf of subfolders) {
             const sfRes = await drive.files.list({
-                q: `'${sf.id}' in parents and trashed=false and mimeType contains 'image/'`,
+                q: `'${sf.id}' in parents and trashed=false`,
                 fields: 'files(id, name, mimeType, thumbnailLink, webContentLink)'
             });
-            images.push(...(sfRes.data.files || []).map(f => ({...f, folderName: sf.name})));
+            images.push(...(sfRes.data.files || []).filter(f => f.mimeType.startsWith('image/')).map(f => ({...f, folderName: sf.name})));
         }
 
         res.json(images);

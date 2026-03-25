@@ -87,19 +87,6 @@ async function getClientAuthClient(clientId) {
 app.get('/health', async (req, res) => res.json({ status: 'running', port: PORT }));
 app.get('/api/config', (req, res) => res.json({ title: 'Photographer SaaS' }));
 
-// TEMPORARY DIAGNOSTIC — Remove after debugging
-app.get('/api/debug/db', async (req, res) => {
-    try {
-        const [tables] = await pool.execute("SHOW TABLES");
-        const [selCount] = await pool.execute("SELECT COUNT(*) as cnt FROM client_selections").catch(() => [[{cnt: 'TABLE_MISSING'}]]);
-        const [selections] = await pool.execute("SELECT * FROM client_selections LIMIT 20").catch(() => [['TABLE_MISSING']]);
-        const [clients] = await pool.execute("SELECT id, name, admin_id FROM clients");
-        res.json({ tables, selCount: selCount[0], selections, clients });
-    } catch(err) {
-        res.json({ error: err.message, stack: err.stack });
-    }
-});
-
 // ═══════════════════════════════════════════════════════════════
 // SUPER ADMIN ROUTES
 // ═══════════════════════════════════════════════════════════════

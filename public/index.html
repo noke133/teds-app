@@ -258,12 +258,11 @@ function renderGrid() {
     if(isSel) selContainer.innerHTML += html;
   });
 
-  if(photosToShow.length === 0) {
-    if (currentView === 'selections') {
-        selContainer.innerHTML = '<div style="grid-column: 1/-1;text-align:center;padding:40px;color:gray;"><i class="bi bi-heart" style="font-size:2rem;display:block;margin-bottom:12px;"></i>No photos selected yet. Liked photos will appear here.</div>';
-    } else {
-        libContainer.innerHTML = '<div style="grid-column: 1/-1;text-align:center;padding:40px;color:gray;">No photos found in this gallery.</div>';
-    }
+  if(allPhotos.length === 0) {
+    libContainer.innerHTML = '<div style="grid-column: 1/-1;text-align:center;padding:40px;color:gray;">No photos found in this gallery.</div>';
+  }
+  if(currentView === 'selections' && selectedIds.size === 0) {
+    selContainer.innerHTML = '<div style="grid-column: 1/-1;text-align:center;padding:40px;color:gray;"><i class="bi bi-heart" style="font-size:2rem;display:block;margin-bottom:12px;"></i>No photos selected yet. Liked photos will appear here.</div>';
   }
 }
 

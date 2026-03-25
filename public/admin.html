@@ -156,7 +156,13 @@
       <!-- NEW GALLERY SECTION -->
       <div class="card mt-24">
          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 16px;">
-            <div class="card-title" style="margin: 0;"><i class="bi bi-images"></i> Client Gallery & Selections</div>
+            <div style="display:flex; align-items: center; gap: 16px;">
+               <div class="card-title" style="margin: 0;"><i class="bi bi-images"></i> Client Gallery & Selections</div>
+               <select id="adminGalleryFilter" class="form-input" style="width: auto; padding: 4px 12px; font-size: 0.85rem;" onchange="renderAdminGallery()">
+                  <option value="all">All Photos</option>
+                  <option value="selected">Client Selections Only</option>
+               </select>
+            </div>
             <div style="display:flex; gap: 8px;">
                <button class="btn btn-ghost" onclick="adminDownloadZip()"><i class="bi bi-file-earmark-zip"></i> ZIP</button>
                <button class="btn btn-danger" onclick="adminDeleteSelected()"><i class="bi bi-trash"></i> Delete</button>
@@ -375,14 +381,21 @@ async function loadAdminGallery(clientId) {
 }
 
 function renderAdminGallery() {
+   const filter = document.getElementById('adminGalleryFilter') ? document.getElementById('adminGalleryFilter').value : 'all';
    const grid = document.getElementById('adminGalleryGrid');
    grid.innerHTML = '';
-   if(adminGalleryPhotos.length === 0) {
-      grid.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color: var(--text-muted);">No photos found in client gallery.</div>';
+   
+   let photosToShow = adminGalleryPhotos;
+   if(filter === 'selected') {
+       photosToShow = adminGalleryPhotos.filter(p => adminGallerySelections.has(p.id));
+   }
+
+   if(photosToShow.length === 0) {
+      grid.innerHTML = '<div style="grid-column: 1/-1; padding:20px; text-align:center; color: var(--text-muted);">No photos found for this filter.</div>';
       return;
    }
    
-   adminGalleryPhotos.forEach(p => {
+   photosToShow.forEach(p => {
        const isClientSelected = adminGallerySelections.has(p.id);
        const isAdminSelected = adminAdminSelections.has(p.id);
        const thumb = p.thumbnailLink.replace(/=s\d+/, '=s400');

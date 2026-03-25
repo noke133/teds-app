@@ -173,7 +173,11 @@ async function loadData() {
     
     document.getElementById('loadingIndicator').classList.add('hidden');
     renderGrid();
-  } catch(err) { console.error('Failed to load gallery', err); }
+  } catch(err) { 
+    document.getElementById('loadingIndicator').classList.add('hidden');
+    console.error('Failed to load gallery', err); 
+    alert("Failed to load your gallery: " + err.message);
+  }
 }
 
 function renderGrid() {
@@ -284,7 +288,7 @@ async function downloadZip() {
       const blob = await res.blob();
       
       // Ensure unique filenames
-      let filename = ph.name || \`photo_\${count}.jpg\`;
+      let filename = ph.name || `photo_${count}.jpg`;
       zip.file(filename, blob);
       count++;
     }

@@ -3,7 +3,8 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=viewport-fit=cover, width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
-  <title>Gallery</title>
+  <title>Gallery | noufal.info</title>
+  <meta name="description" content="View and select your professional photos in high resolution. Powered by noufal.info.">
   
   <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
   <script src="https://cdnjs.cloudflare.com/ajax/libs/FileSaver.js/2.0.5/FileSaver.min.js"></script>
@@ -148,6 +149,12 @@
 
   <div id="galleryView" class="grid hidden"></div>
   <div id="selectionsView" class="grid hidden"></div>
+  
+  <footer style="padding: 60px 20px; text-align: center; font-size: 0.75rem; color: rgba(255,255,255,0.3); border-top: 0.5px solid var(--border); margin-top: 40px; text-transform: uppercase; letter-spacing: 0.05em;">
+    &copy; 2026 noufal.info &bull; 
+    <a href="/privacy.html" style="color: inherit; text-decoration: none;">Privacy</a> &bull; 
+    <a href="/terms.html" style="color: inherit; text-decoration: none;">Terms</a>
+  </footer>
 </main>
 
 <nav id="bottomNav" class="hidden">
@@ -176,7 +183,7 @@ async function checkAuth() {
   const data = await res.json();
   if(!data.loggedIn) return window.location.href = '/login';
   
-  document.getElementById('headerTitle').innerText = data.name + ' Gallery';
+  document.getElementById('headerTitle').innerText = 'noufal.info | ' + data.name;
   document.getElementById('loadingIndicator').classList.add('hidden');
 
   if (!data.isConnected) {

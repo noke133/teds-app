@@ -87,6 +87,16 @@ async function getClientAuthClient(clientId) {
 app.get('/health', async (req, res) => res.json({ status: 'running', port: PORT }));
 app.get('/api/config', (req, res) => res.json({ title: 'Photographer SaaS' }));
 
+app.get('/api/debug/db', async (req, res) => {
+    try {
+        const [selCount] = await pool.execute("SELECT COUNT(*) as cnt FROM client_selections").catch(() => [[{cnt: 'err'}]]);
+        const [selections] = await pool.execute("SELECT * FROM client_selections LIMIT 50").catch(() => [['err']]);
+        res.json({ selCount: selCount[0], selections });
+    } catch(err) {
+        res.json({ error: err.message });
+    }
+});
+
 // ═══════════════════════════════════════════════════════════════
 // SUPER ADMIN ROUTES
 // ═══════════════════════════════════════════════════════════════

@@ -551,13 +551,20 @@ app.post('/api/client/selections', requireClient, async (req, res) => {
 });
 
 // ─── Routing mappings ─────────────────────────────────────────
+app.get('/', (req, res) => res.sendFile(path.join(__dirname, 'public', 'landing.html')));
+app.get('/gallery', (req, res) => res.sendFile(path.join(__dirname, 'public', 'index.html')));
 app.get('/superadmin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'superadmin.html')));
 app.get('/admin', (req, res) => res.sendFile(path.join(__dirname, 'public', 'admin.html')));
 app.get('/login', (req, res) => res.sendFile(path.join(__dirname, 'public', 'login.html')));
 app.get('/invoice', (req, res) => res.sendFile(path.join(__dirname, 'public', 'invoice.html')));
+
 app.get('*', (req, res) => {
-    if (req.accepts('html')) res.sendFile(path.join(__dirname, 'public', 'index.html'));
-    else res.status(404).end();
+    if (req.accepts('html')) {
+        // Default to landing page for unknown routes if not specifically handled
+        res.sendFile(path.join(__dirname, 'public', 'landing.html'));
+    } else {
+        res.status(404).end();
+    }
 });
 
 const server = app.listen(PORT, () => {

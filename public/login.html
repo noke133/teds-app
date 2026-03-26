@@ -90,7 +90,7 @@
       });
       const data = await res.json();
       if(res.ok) {
-        window.location.href = '/'; // Redirect to gallery
+        window.location.href = '/gallery'; // Redirect to gallery
       } else {
         alert(data.error || 'Invalid passcode');
       }

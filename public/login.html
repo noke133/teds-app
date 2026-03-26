@@ -12,10 +12,11 @@
     body { background: #000; color: #fff; display: flex; align-items: center; justify-content: center; min-height: 100vh; overflow: hidden; }
     .auth-container { width: 100%; max-width: 400px; padding: 40px 30px; text-align: center; }
     .logo-circle { 
-      width: 80px; height: 80px; background: rgba(255,255,255,0.1); 
+      width: 100px; height: 100px; background: rgba(255,255,255,0.05); 
       border-radius: 50%; display: flex; align-items: center; justify-content: center; 
-      margin: 0 auto 24px auto; font-size: 2.2rem; border: 1px solid rgba(255,255,255,0.2);
+      margin: 0 auto 24px auto; border: 1px solid rgba(255,255,255,0.1); overflow: hidden;
     }
+    .logo-circle img { width: 80%; height: 80%; object-fit: contain; }
     h1 { font-size: 1.8rem; font-weight: 700; margin-bottom: 8px; letter-spacing: -0.02em; }
     p { color: rgba(255,255,255,0.5); margin-bottom: 32px; font-size: 0.95rem; }
     .code-input {
@@ -50,7 +51,7 @@
 <body>
 
 <div class="auth-container">
-  <div class="logo-circle"><i class="bi bi-camera-fill"></i></div>
+  <div class="logo-circle"><img src="/logo.png" alt="noufal.info logo"></div>
   <h1>noufal.info</h1>
   <p>Enter your unique passcode to access your gallery.</p>
 

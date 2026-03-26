@@ -163,7 +163,7 @@
                <span id="galleryStats" style="font-size:0.8rem; color:var(--text-muted); font-weight:normal; margin-left:12px;"></span>
             </h2>
             <div style="display:flex; gap:12px; align-items:center;">
-               <button class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem;" onclick="loadAdminGallery(activeClientId)" title="Refresh Gallery"><i class="bi bi-arrow-clockwise"></i> Reload</button>
+               <button class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem;" onclick="loadAdminGallery(activeClientId, activeClientName)" title="Refresh Gallery"><i class="bi bi-arrow-clockwise"></i> Reload</button>
                <select id="adminGalleryFilter" class="form-input" style="width:auto; padding: 4px 12px;" onchange="renderAdminGallery()">
                   <option value="all">All Photos</option>
                   <option value="selected">Client Selections Only</option>
@@ -302,7 +302,7 @@ function showToast(msg, type='info') {
   setTimeout(() => t.remove(), 3000);
 }
 
-let activeClientId = null; let activeFolderId = null;
+let activeClientId = null; let activeFolderId = null; let activeClientName = null;
 
 fetch('/api/admin/status').then(r=>r.json()).then(data => {
   if (data.loggedIn) {
@@ -405,9 +405,9 @@ function manageClient(clientId, name, passcode, drive_folder_id, isConnected) {
   document.getElementById('managingLink').href = link;
   document.getElementById('managingLink').innerText = link;
 
-  activeClientId = clientId; activeFolderId = drive_folder_id;
+  activeClientId = clientId; activeFolderId = drive_folder_id; activeClientName = name;
   loadSubfolders(clientId, drive_folder_id);
-  loadAdminGallery(clientId);
+  loadAdminGallery(clientId, name);
 }
 
 async function loadSubfolders(clientId, rootFolderId) {
@@ -471,7 +471,7 @@ let adminGalleryPhotos = [];
 let adminGallerySelections = new Set();
 let adminAdminSelections = new Set();
 
-async function loadAdminGallery(clientId) {
+async function loadAdminGallery(clientId, clientName) {
    document.getElementById('adminGalleryGrid').innerHTML = '';
    document.getElementById('adminGalleryLoading').classList.remove('hidden');
    adminAdminSelections.clear();
@@ -491,7 +491,7 @@ async function loadAdminGallery(clientId) {
       adminGallerySelections = new Set(selData);
       
       const stats = document.getElementById('galleryStats');
-      if(stats) stats.innerText = `(${adminGalleryPhotos.length} photos found, ${adminGallerySelections.size} likes)`;
+      if(stats) stats.innerText = `(${adminGalleryPhotos.length} photos found, ${adminGallerySelections.size} selections for ${clientName || 'current client'})`;
 
       document.getElementById('adminGalleryLoading').classList.add('hidden');
       renderAdminGallery();

@@ -37,7 +37,8 @@ app.use(session({
     resave: false, saveUninitialized: false,
     cookie: { maxAge: 7 * 24 * 60 * 60 * 1000 } // 7 days
 }));
-app.use(express.static(path.join(__dirname, 'public')));
+// ... (removed express.static from here to move it after custom routes)
+
 
 // ─── Google OAuth2 Client ─────────────
 function getOAuth2Client() {
@@ -566,6 +567,8 @@ app.get('*', (req, res) => {
         res.status(404).end();
     }
 });
+
+app.use(express.static(path.join(__dirname, 'public')));
 
 const server = app.listen(PORT, () => {
     console.log(`🚀 Photographer SaaS App running at http://localhost:${PORT}`);

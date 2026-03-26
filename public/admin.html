@@ -162,7 +162,8 @@
             <h2 style="font-size: 1.25rem; font-weight: 700; margin:0;"><i class="bi bi-images"></i> Client Gallery & Selections 
                <span id="galleryStats" style="font-size:0.8rem; color:var(--text-muted); font-weight:normal; margin-left:12px;"></span>
             </h2>
-            <div style="display:flex; gap:12px;">
+            <div style="display:flex; gap:12px; align-items:center;">
+               <button class="btn btn-ghost" style="padding: 4px 8px; font-size: 0.8rem;" onclick="loadAdminGallery(activeClientId)" title="Refresh Gallery"><i class="bi bi-arrow-clockwise"></i> Reload</button>
                <select id="adminGalleryFilter" class="form-input" style="width:auto; padding: 4px 12px;" onchange="renderAdminGallery()">
                   <option value="all">All Photos</option>
                   <option value="selected">Client Selections Only</option>

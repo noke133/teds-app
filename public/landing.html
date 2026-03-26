@@ -50,76 +50,57 @@
 
         /* Hero Section */
         .hero {
-            padding: 100px 0 140px 0;
+            padding: 80px 0 100px 0;
             text-align: center;
             position: relative;
         }
-        .hero::before {
-            content: '';
-            position: absolute;
-            top: -100px;
-            left: 50%;
-            transform: translateX(-50%);
-            width: 600px;
-            height: 600px;
-            background: radial-gradient(circle, rgba(10, 132, 255, 0.15) 0%, transparent 70%);
-            z-index: -1;
-            pointer-events: none;
+        .hero-logo {
+            width: 140px; height: 140px; margin: 0 auto 40px auto;
+            background: rgba(255,255,255,0.03); border-radius: 50%;
+            display: flex; align-items: center; justify-content: center;
+            border: 1px solid var(--border);
+            box-shadow: 0 0 40px rgba(10, 132, 255, 0.1);
         }
+        .hero-logo img { width: 70%; height: 70%; object-fit: contain; }
+        
         h1 {
-            font-size: clamp(2.5rem, 8vw, 4.5rem);
+            font-size: clamp(2.5rem, 8vw, 4rem);
             font-weight: 800;
             line-height: 1.1;
             letter-spacing: -0.04em;
             margin-bottom: 24px;
         }
         .hero p {
-            font-size: clamp(1.1rem, 3vw, 1.4rem);
+            font-size: 1.25rem;
             color: var(--muted);
-            max-width: 700px;
+            max-width: 650px;
             margin: 0 auto 48px auto;
         }
-        .btn-primary {
-            display: inline-flex;
-            align-items: center;
-            gap: 10px;
-            background: var(--accent);
-            color: #fff;
-            padding: 18px 36px;
-            border-radius: 14px;
-            font-weight: 600;
-            font-size: 1.1rem;
-            text-decoration: none;
-            transition: transform 0.2s, background 0.2s;
-            box-shadow: 0 10px 20px rgba(10, 132, 255, 0.2);
-        }
-        .btn-primary:hover { transform: translateY(-2px); background: #0076E5; }
 
         /* Features */
         .features {
             display: grid;
             grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
-            gap: 32px;
-            margin-bottom: 100px;
+            gap: 24px;
+            margin-bottom: 80px;
         }
         .feature-card {
-            background: rgba(255, 255, 255, 0.03);
+            background: rgba(255, 255, 255, 0.02);
             border: 1px solid var(--border);
-            padding: 40px;
-            border-radius: 24px;
-            transition: border 0.3s;
+            padding: 32px;
+            border-radius: 20px;
+            text-align: left;
         }
-        .feature-card:hover { border-color: rgba(255, 255, 255, 0.2); }
-        .feature-card i { font-size: 2rem; color: var(--accent); margin-bottom: 24px; display: block; }
-        .feature-card h3 { font-size: 1.5rem; margin-bottom: 12px; }
-        .feature-card p { color: var(--muted); font-size: 1rem; }
+        .feature-card i { font-size: 1.5rem; color: var(--accent); margin-bottom: 20px; display: block; }
+        .feature-card h3 { font-size: 1.25rem; margin-bottom: 12px; }
+        .feature-card p { color: var(--muted); font-size: 0.95rem; line-height: 1.5; }
 
         /* Footer */
         footer {
-            padding: 80px 0 40px 0;
+            padding: 60px 0 40px 0;
             border-top: 1px solid var(--border);
             color: var(--muted);
-            font-size: 0.9rem;
+            font-size: 0.85rem;
         }
         .footer-grid {
             display: flex;
@@ -134,7 +115,8 @@
 
         @media (max-width: 600px) {
             .nav-links { display: none; }
-            .hero { padding: 60px 0 80px 0; }
+            .hero { padding: 40px 0 60px 0; }
+            .hero-logo { width: 100px; height: 100px; margin-bottom: 24px; }
         }
     </style>
 </head>
@@ -146,35 +128,37 @@
                 noufal.info
             </a>
             <div class="nav-links">
-                <a href="/login">Client Login</a>
-                <a href="/admin">Photographer Portal</a>
-                <a href="/privacy.html">Privacy</a>
+                <a href="/login" id="navLoginLink">Client Login</a>
+                <a href="/admin">Admin Portal</a>
             </div>
         </nav>
 
         <section class="hero">
-            <h1>Memories, Delivered <br> with <span style="color:var(--accent);">Elegance.</span></h1>
-            <p>The premium photography management platform. Delivering high-resolution galleries and professional invoices for modern photographers.</p>
-            <a href="/login" class="btn-primary">
-                Explore Your Gallery <i class="bi bi-arrow-right"></i>
+            <div class="hero-logo">
+                <img src="/logo.png" alt="noufal.info logo">
+            </div>
+            <h1>Smart Gallery <br> for <span style="color:var(--accent);">Photographers.</span></h1>
+            <p>A premium client management platform to deliver high-resolution photos, professional invoices, and curated selections seamlessly via Google Drive.</p>
+            <a href="/login" id="startBtn" class="btn-primary">
+                Get Started <i class="bi bi-arrow-right"></i>
             </a>
         </section>
 
         <section class="features">
             <div class="feature-card">
-                <i class="bi bi-shield-check"></i>
-                <h3>Secure Delivery</h3>
-                <p>Private, passcode-protected galleries powered by Google Drive for seamless and safe photo delivery.</p>
+                <i class="bi bi-cloud-check"></i>
+                <h3>Google Drive Sync</h3>
+                <p>Sync your work directly from Google Drive. No manual uploading required. We handle the heavy lifting.</p>
             </div>
             <div class="feature-card">
-                <i class="bi bi-cloud-arrow-down"></i>
-                <h3>Direct Downloads</h3>
-                <p>One-click high-resolution downloads and instant ZIP generation for entire photo collections.</p>
+                <i class="bi bi-file-earmark-pdf"></i>
+                <h3>Professional Invoices</h3>
+                <p>Generate and manage professional invoices for your clients with tax integration and PDF support.</p>
             </div>
             <div class="feature-card">
-                <i class="bi bi-heart"></i>
-                <h3>Curated Selections</h3>
-                <p>Easily select and favorite the moments you love most. Direct synchronization with your photographer.</p>
+                <i class="bi bi-stars"></i>
+                <h3>Client Selection</h3>
+                <p>Clients can select their favorite photos directly in the gallery. Instant feedback for your workflow.</p>
             </div>
         </section>
 
@@ -184,10 +168,30 @@
                 <div class="footer-links">
                     <a href="/privacy.html">Privacy Policy</a>
                     <a href="/terms.html">Terms of Service</a>
-                    <a href="/login">Login</a>
                 </div>
             </div>
         </footer>
     </div>
+
+    <script>
+        async function checkLogin() {
+            try {
+                const res = await fetch('/api/client/status');
+                const data = await res.json();
+                const startBtn = document.getElementById('startBtn');
+                const navLogin = document.getElementById('navLoginLink');
+
+                if (data && data.loggedIn) {
+                    startBtn.innerHTML = 'Go to My Gallery <i class="bi bi-arrow-right"></i>';
+                    startBtn.href = '/gallery';
+                    if(navLogin) navLogin.innerText = 'Go to Gallery';
+                    if(navLogin) navLogin.href = '/gallery';
+                }
+            } catch (err) {
+                console.error("Auth check failed", err);
+            }
+        }
+        checkLogin();
+    </script>
 </body>
 </html>

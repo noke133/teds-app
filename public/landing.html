@@ -77,6 +77,27 @@
             margin: 0 auto 48px auto;
         }
 
+        .btn-primary {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            background: linear-gradient(135deg, #0A84FF 0%, #0070DF 100%);
+            color: #fff;
+            padding: 20px 48px;
+            border-radius: 100px; /* Pillow shape for modern premium feel */
+            font-weight: 700;
+            font-size: 1.15rem;
+            text-decoration: none;
+            transition: all 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 15px 30px rgba(10, 132, 255, 0.3);
+            border: 1px solid rgba(255,255,255,0.1);
+        }
+        .btn-primary:hover { 
+            transform: translateY(-4px) scale(1.02); 
+            box-shadow: 0 20px 40px rgba(10, 132, 255, 0.4);
+            background: linear-gradient(135deg, #2094FF 0%, #0A84FF 100%);
+        }
+
         /* Features */
         .features {
             display: grid;
@@ -131,6 +152,7 @@
             .hero { padding: 40px 0 60px 0; }
             .hero-logo { width: 100px; height: 100px; margin-bottom: 24px; }
             h1 { font-size: 2.5rem; }
+            .btn-primary { width: 100%; justify-content: center; }
         }
     </style>
 </head>
@@ -143,7 +165,6 @@
             </a>
             <div class="nav-links">
                 <a href="/login" id="navLoginLink">Client Login</a>
-                <a href="/admin">Admin Portal</a>
             </div>
         </nav>
 
@@ -160,6 +181,7 @@
                 </a>
             </div>
         </section>
+
 
         <section class="features">
             <div class="feature-box">
